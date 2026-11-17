@@ -70,6 +70,18 @@ Commandes : `ZQSD`/`WASD` (touches physiques), souris, clic gauche tirer, clic d
 accroupi, `R` recharger, **molette : zoom continu** de la vue TPS jusqu'à la carte stratégique, `M` carte,
 `T` terraformation (vue carte), `Échap` libérer la souris.
 
+## Assets 3D (Cities: Skylines → glTF)
+
+`outils/crp2glb` convertit les paquets d'assets Cities: Skylines (`.crp`, format « Colossal Raw Package » décodé par
+rétro-ingénierie : maillages Unity, textures DDS DXT1/DXT3/DXT5, repère main gauche → main droite) en `.glb`, et
+`outils/importer_assets.sh <dossier .crp>` produit `assets/*.glb` + `assets/manifeste.json`. Le prototype web
+remplace alors les volumes provisoires par ces modèles (`web/src/rendu/decor.js`) : bâtiments par rôle (clé `decor`
+des scénarios), arbres, véhicules des convois. **Rendu seulement** : la simulation garde ses volumes, donc
+déterminisme et mode headless sont inchangés.
+
+Les assets du Workshop appartiennent à leurs auteurs : ni les `.crp` ni les `.glb` ne sont versionnés (voir
+`assets/LISEZMOI.md`). Côté natif, le chargement des `.glb` (cgltf) n'est pas encore fait.
+
 ## Le document de conception, module par module
 
 | Document | Où | Ce qui est simulé |

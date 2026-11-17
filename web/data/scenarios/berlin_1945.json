@@ -7,6 +7,7 @@
   "heure_depart": 7.5,
   "monde": { "taille": 2048, "cellule": 8, "alt_min": 30, "alt_max": 52, "rugosite": 0.45, "niveau_eau": 31 },
   "aplanir": [[-960, -960, 960, 960, 34], [-1024, -24, 1024, 24, 26]],
+  "decor": {"_note": "rendu seulement : modèles du manifeste assets/ (outils/importer_assets.sh) par rôle ; volumes provisoires si absents", "residentiel": ["ParisBuilding1a", "ParisCornerBuilding2a", "Florence House 1x2a LV3", "Florence House 2x2", "Florence House 2x2b Corner", "Florence BlockHouse 3x3", "Italian Corner 2x2 - Rome", "Italian Flat [Rome] 2x2c2", "Nissa 12", "Genova residential high 7", "Milano 2", "BrittanyHouseA", "France 3", "thierscorner1"], "banque": ["lg_mons_corner_shop_1", "DutchShop_3", "Greek shop 4"], "usine": ["London Underground substation"], "hopital": ["French Private School [Paris]", "school1"], "qg": ["BNU-Strasbourg."], "arbres": ["Spruce pd", "Shore Pine 10 24m", "Pine Forest 08", "pd Large Smooth Gumtree"], "vehicules": ["Dodge_Panel_Truck_Farm"]},
   "factions": [
     { "id": "armee_rouge", "nom": "Armée rouge (1er front biélorusse)", "type": "etat", "couleur": "#c0392b",
       "tresor": 4000000, "masse_monetaire": 30000000, "impot": 0.25, "budget": { "education": 0.05, "defense": 0.55, "sante": 0.12, "infrastructures": 0.1, "dette": 0.03 },

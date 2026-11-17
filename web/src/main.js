@@ -5,6 +5,7 @@ import GUI from "lil-gui";
 import { Coeur, BOUTONS, DECRETS, POSTES, HEATMAPS, ROLES, STRIDE } from "./plateforme/g1_coeur.js";
 import { Terrain } from "./rendu/terrain.js";
 import { Entites, vegetation } from "./rendu/entites.js";
+import { Decor } from "./rendu/decor.js";
 import { CameraTPS } from "./rendu/camera.js";
 import { Hud } from "./ui/hud.js";
 
@@ -53,7 +54,9 @@ async function demarrer(fichier) {
   const sceneFlir = new THREE.Scene(); sceneFlir.add(quadFlir); const cameraFlir = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   const F = coeur.factions(), couleurs = Array.from({ length: coeur.nf }, (_, i) => F[i * STRIDE.faction + 22] | 0);
-  const terrain = new Terrain(scene, coeur), entites = new Entites(scene, coeur, couleurs), arbres = vegetation(scene, coeur);
+  const decor = new Decor(scene, coeur), avecDecor = await decor.charger(JSON.parse(scenario));   // modèles importés (assets/), facultatifs
+  const terrain = new Terrain(scene, coeur), entites = new Entites(scene, coeur, couleurs); entites.decor = decor;
+  const arbres = vegetation(scene, coeur, 12000, avecDecor ? decor : null);
   let origine = { x: coeur.etat()[8], z: coeur.etat()[9] }; terrain.maj(origine);
   let H = coeur.terrain().hauteurs.slice();
   const hauteur = (x, z) => {   // même interpolation que Monde::hauteur (rendu seulement : caméra, routes)
@@ -139,7 +142,7 @@ async function demarrer(fichier) {
   function evenements() {
     for (const e of coeur.events()) {
       if (e.type === "explosion") entites.explosion(e.x, e.y, e.z, e.r);
-      if (e.type === "origine") { origine = { x: coeur.etat()[8], z: coeur.etat()[9] }; terrain.maj(origine); entites.majRoutes(); entites.draperRoutes(hauteur); entites.lisse.clear(); }
+      if (e.type === "origine") { origine = { x: coeur.etat()[8], z: coeur.etat()[9] }; terrain.maj(origine); entites.majRoutes(); entites.draperRoutes(hauteur); entites.lisse.clear(); entites.signature = ""; }
       if (e.type === "terraformation" || e.type === "terrain") { terrain.maj(origine); H = coeur.terrain().hauteurs.slice(); hud.majFond(); entites.signature = ""; entites.draperRoutes(hauteur); }
       if (e.type === "negociation") negociation(e);
       const f = NOMS[e.type]?.(e); if (f) hud.fil(f, ["crime_de_guerre", "guerre", "identite_revelee", "insurrection"].includes(e.type) ? "#e2463b" : undefined);
@@ -160,7 +163,7 @@ async function demarrer(fichier) {
     coeur.step(dt); evenements();
     entites.majUnites(dt, j, Math.max(1, cam.distance / 60), { flir: params.flir, contours: params.contours, terrain, origine });
     entites.majProjectiles(); entites.majConvois(params.flir); entites.majStructures(params.flir); entites.majEffets(dt);
-    arbres.uniformes.temps.value = now / 1000; arbres.maillage.position.set(-origine.x, 0, -origine.z);
+    arbres.uniformes.temps.value = now / 1000; arbres.maillage.position.set(-origine.x, 0, -origine.z); decor.groupeArbres.position.copy(arbres.maillage.position);
     if ((minuteur -= dt) <= 0) {   // à 4 Hz : streaming, cartes de chaleur, brouillard, tableau diplomatique
       minuteur = 0.25; terrain.toutVisible = cam.strategique; terrain.streaming(pl, origine);
       if (params.chaleur >= 0 && cam.distance > 40) terrain.chaleur(coeur.heatmap(params.chaleur), params.opaciteChaleur); else terrain.materiau.uniforms.uParams.value.x = 0;
@@ -183,11 +186,11 @@ async function demarrer(fichier) {
     u.uMode.value.x = params.flir ? 1 : 0;
     if (params.flir) {   // passe thermique : fond froid, pas de brouillard, eau froide, végétation tiède, puis post-traitement
       const fond = scene.background, brume = scene.fog; scene.background = new THREE.Color(0.04, 0.04, 0.04); scene.fog = null;
-      if (terrain.eauMesh) terrain.eauMesh.visible = false; arbres.maillage.visible = false; entites.marqueur.visible = entites.routes.visible = false;
+      if (terrain.eauMesh) terrain.eauMesh.visible = false; arbres.maillage.visible = false; decor.groupeArbres.visible = false; entites.marqueur.visible = entites.routes.visible = false;
       const taille = renderer.getDrawingBufferSize(new THREE.Vector2()); if (cibleFlir.width !== taille.x || cibleFlir.height !== taille.y) cibleFlir.setSize(taille.x, taille.y);
       renderer.setRenderTarget(cibleFlir); renderer.render(scene, camera); renderer.setRenderTarget(null);
       quadFlir.material.uniforms.u_thermalTimeParams.value.x = now / 1000; renderer.render(sceneFlir, cameraFlir);
-      scene.background = fond; scene.fog = brume; if (terrain.eauMesh) terrain.eauMesh.visible = true; arbres.maillage.visible = true; entites.marqueur.visible = entites.routes.visible = true;
+      scene.background = fond; scene.fog = brume; if (terrain.eauMesh) terrain.eauMesh.visible = true; arbres.maillage.visible = !arbres.maillage.userData.remplace; decor.groupeArbres.visible = true; entites.marqueur.visible = entites.routes.visible = true;
     } else renderer.render(scene, camera);
   });
 }

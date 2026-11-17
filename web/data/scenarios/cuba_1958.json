@@ -7,6 +7,7 @@
   "heure_depart": 6,
   "monde": { "taille": 4096, "cellule": 16, "alt_min": 0, "alt_max": 420, "rugosite": 0.45, "niveau_eau": 3 },
   "aplanir": [[640, 640, 1600, 1600, 25], [-1400, -1300, -1150, -1050, 260]],
+  "decor": {"_note": "rendu seulement : modèles du manifeste assets/ (outils/importer_assets.sh) par rôle ; volumes provisoires si absents", "residentiel": ["Casa brasileira 3", "Mexican House Pack 08 MXHP", "Mexican House Pack 10 MXHP", "Mediterranean House 1", "Mediterranean House 7", "Cuba High Residential House 2", "Meditterranean old town - 3.1"], "banque": ["kz_habana_libre"], "usine": ["Edificio Salvador Dali 2", "8 Floor Residential Guantanamo", "18 plantas B Santiago"], "hopital": ["Escuela_PeterBar3", "Government Secondary School v1"], "qg": ["Mediterranean Fire Station"], "arbres": ["Sabal Palmetto 2 13m", "Sabal Palmetto 2 20m", "Cocos Nucifera 10m bent 2", "Cocos Nucifera 10m pruned", "W Filifera 15m", "PH California Palm"], "vehicules": ["Dodge_Panel_Truck_Farm"]},
   "factions": [
     { "id": "regime", "nom": "Régime de Batista", "type": "etat", "couleur": "#2c3e50",
       "tresor": 3000000, "masse_monetaire": 40000000, "impot": 0.18, "budget": { "education": 0.1, "defense": 0.45, "sante": 0.08, "infrastructures": 0.12, "dette": 0.05 },

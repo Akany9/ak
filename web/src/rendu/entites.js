@@ -69,17 +69,18 @@ export class Entites {
     if (sig === this.signature) return; this.signature = sig; this.bat.material = flir ? this.matBasique : this.matBat;
     for (let i = 0; i < n; i++) {
       const o = i * STRIDE.structure, etat = d[o + 7], role = d[o + 8], mat = d[o + 11] | 0, fac = d[o + 10];
-      const h = etat === 2 ? Math.max(0.6, d[o + 4] * 0.3) : d[o + 4], pont = role === 3;
-      tmp.position.set(d[o], d[o + 1] - (pont ? 0 : 1), d[o + 2]); tmp.rotation.set(0, d[o + 6], 0); tmp.scale.set(d[o + 3], h + (pont ? 0 : 1), d[o + 5]); tmp.updateMatrix();
+      const h = etat === 2 ? Math.max(0.6, d[o + 4] * 0.3) : d[o + 4], pont = role === 3, modele = this.decor?.remplace(i, etat);
+      tmp.position.set(d[o], d[o + 1] - (pont ? 0 : 1), d[o + 2]); tmp.rotation.set(0, d[o + 6], 0); tmp.scale.set(modele ? 0 : d[o + 3], h + (pont ? 0 : 1), modele ? 0 : d[o + 5]); tmp.updateMatrix();   // remplacé par un modèle glTF : volume masqué
       this.bat.setMatrixAt(i, tmp.matrix);
       col.setHex(ROLE_COULEUR[role] ?? 0xaaaaaa); const t = MAT_TEINTE[mat] ?? [1, 1, 1]; col.r *= t[0]; col.g *= t[1]; col.b *= t[2];
       if (etat === 1) col.multiplyScalar(0.72); if (etat === 2) col.setRGB(0.35, 0.32, 0.3);
       if (role === 5 || role === 4) col.lerp(new THREE.Color(this.couleurFaction(fac)), 0.55);   // avant-postes et QG : couleur du propriétaire
       if (flir) gris(d[o + 12]);
       this.bat.setColorAt(i, col);
-      tmp.position.y = d[o + 1] + h + 0.03; tmp.scale.set(etat === 2 || pont ? 0 : d[o + 3] * 1.02, 1, d[o + 5] * 1.02); tmp.updateMatrix(); this.toits.setMatrixAt(i, tmp.matrix);
+      tmp.position.y = d[o + 1] + h + 0.03; tmp.scale.set(etat === 2 || pont || modele ? 0 : d[o + 3] * 1.02, 1, d[o + 5] * 1.02); tmp.updateMatrix(); this.toits.setMatrixAt(i, tmp.matrix);
     }
     this.bat.instanceMatrix.needsUpdate = this.toits.instanceMatrix.needsUpdate = true; if (this.bat.instanceColor) this.bat.instanceColor.needsUpdate = true;
+    this.decor?.majBatiments();
   }
 
   majRoutes() {
@@ -137,6 +138,7 @@ export class Entites {
       tmp.position.set(d[o], d[o + 1], d[o + 2]); tmp.rotation.set(0, d[o + 3], d[o + 7] === 2 ? 0.4 : 0); tmp.scale.setScalar(1); tmp.updateMatrix();
       this.camions.setMatrixAt(m, tmp.matrix); col.setHex(this.couleurFaction(d[o + 4])); if (d[o + 7] === 2) col.setRGB(0.15, 0.13, 0.12); if (flir) gris(d[o + 7] === 2 ? 1 : 0.75); this.camions.setColorAt(m++, col);
     }
+    if (this.decor?.majVehicules(this.coeur.convois())) m = 0;   // modèle de véhicule importé
     this.camions.count = m; this.camions.instanceMatrix.needsUpdate = true; if (this.camions.instanceColor) this.camions.instanceColor.needsUpdate = true;
   }
 
@@ -154,7 +156,7 @@ export class Entites {
 }
 
 // Végétation : arbres instanciés sur les cellules de forêt, agités par le vent dans le vertex shader (§ 4, coût CPU nul).
-export function vegetation(scene, coeur, max = 12000) {
+export function vegetation(scene, coeur, max = 12000, decor = null) {
   const t = coeur.terrain(), n = t.n, C = t.cellules, H = t.hauteurs, w = n + 1, cand = [];
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (C[(j * n + i) * 4] === 1 && ((i * 73856093) ^ (j * 19349663)) % 3 === 0) cand.push([i, j]);
   const pas = Math.max(1, Math.ceil(cand.length / max)), geo = new THREE.ConeGeometry(1.6, 6, 6).translate(0, 4, 0);
@@ -169,5 +171,10 @@ export function vegetation(scene, coeur, max = 12000) {
     const [i, j] = cand[c], x = -t.taille / 2 + (i + 0.5) * t.cellule, z = -t.taille / 2 + (j + 0.5) * t.cellule, y = H[j * w + i];
     tmp.position.set(x, y, z); tmp.rotation.set(0, (i * 13 + j * 7) % 6, 0); tmp.scale.setScalar(0.7 + ((i * 31 + j * 17) % 10) / 15); tmp.updateMatrix(); m.setMatrixAt(k++, tmp.matrix);
   }
-  m.count = k; m.castShadow = true; scene.add(m); return { maillage: m, uniformes: u };
+  m.count = k; m.castShadow = true; scene.add(m);
+  if (decor) {   // arbres importés (glTF) à la place des cônes : mêmes positions, même hasard déterministe
+    const mats = []; for (let i = 0; i < k; i++) { const x = new THREE.Matrix4(); m.getMatrixAt(i, x); mats.push(x); }
+    if (decor.majArbres(mats)) { m.visible = false; m.userData.remplace = true; }
+  }
+  return { maillage: m, uniformes: u };
 }

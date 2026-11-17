@@ -47,6 +47,7 @@ int g1_heightmap16(const void* px, int n, float a, float b) { return pret() && g
 int g1_terrain_n(void) { return pret() ? g_m->n : 0; }
 float g1_terrain_cellule(void) { return pret() ? float(g_m->cell) : 0; }
 float g1_terrain_taille(void) { return pret() ? float(g_m->taille) : 0; }
+float g1_niveau_eau(void) { return pret() ? g_m->D.scenario.niveauEau : -1; }
 int g1_terrain_revision(void) { return pret() ? g_m->revisionTerrain : 0; }
 const float* g1_terrain_hauteurs(void) { return pret() ? g_m->h.data() : nullptr; }
 const float* g1_cellules(void) {

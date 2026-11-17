@@ -44,6 +44,7 @@ G1_API int g1_heightmap16(const void* pixels, int cote, float altMin, float altM
 G1_API int g1_terrain_n(void);                 /* n cellules par côté ; (n+1)² hauteurs */
 G1_API float g1_terrain_cellule(void);
 G1_API float g1_terrain_taille(void);
+G1_API float g1_niveau_eau(void);            /* altitude de l'eau (m), −1 : pas d'eau */
 G1_API int g1_terrain_revision(void);          /* change à chaque modification du relief */
 G1_API const float* g1_terrain_hauteurs(void);
 G1_API const float* g1_cellules(void);         /* n² × 4 : biome, zone, propriétaire, ressource */

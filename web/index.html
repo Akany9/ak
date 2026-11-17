@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game 1 — prototype</title>
+<!-- Prototype de rendu three.js : AUCUNE règle de jeu ici. Toute la simulation tourne dans le cœur C++ compilé en
+     WebAssembly (g1_coeur.wasm, sources dans ../coeur) — le même code que l'hôte natif bgfx. -->
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/dist/lil-gui.esm.min.js"
+} }
+</script>
+<style>
+  :root { --fond: #0f1114; --texte: #e8ecef; --discret: #9aa4ad; --accent: #f2c230; --danger: #e2463b; --ok: #3fd46a; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fond); color: var(--texte); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  canvas#vue { display: block; width: 100vw; height: 100vh; }
+  .hud { position: fixed; pointer-events: none; text-shadow: 0 1px 2px #000a; }
+  #carte { left: 16px; bottom: 16px; width: 200px; height: 200px; border-radius: 50%; overflow: hidden; border: 1px solid #fff4; background: #0008; }
+  #carte canvas { width: 100%; height: 100%; }
+  #boussole { left: 50%; top: 12px; transform: translateX(-50%); width: 360px; height: 22px; overflow: hidden; border-bottom: 1px solid #fff5;
+    font: 600 12px/22px ui-monospace, monospace; letter-spacing: .05em; mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
+  #boussole div { position: absolute; white-space: nowrap; }
+  #vitals { right: 16px; bottom: 16px; text-align: right; font: 600 14px ui-monospace, monospace; }
+  #vitals .grand { font-size: 30px; }
+  .jauge { width: 180px; height: 4px; background: #fff2; margin: 6px 0 0 auto; }
+  .jauge > i { display: block; height: 100%; background: var(--ok); }
+  #etat { left: 16px; top: 12px; font: 12px ui-monospace, monospace; color: #c3cbd2; background: #0d0f12b0; padding: 6px 10px; border-radius: 6px; }
+  #etat b { color: var(--texte); }
+  #fil { left: 232px; bottom: 16px; width: min(520px, 40vw); font-size: 12px; display: flex; flex-direction: column-reverse; gap: 2px; max-height: 180px; overflow: hidden; }
+  #fil div { background: #000a; padding: 2px 8px; border-left: 2px solid var(--accent); animation: fondu 12s forwards; }
+  @keyframes fondu { 0%, 80% { opacity: 1 } 100% { opacity: 0 } }
+  #viseur { left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border: 1px solid #fffc; border-radius: 50%; }
+  #suspicion { left: 50%; top: 42px; transform: translateX(-50%); width: 160px; height: 3px; background: #fff2; }
+  #suspicion i { display: block; height: 100%; background: var(--accent); }
+  #accueil { position: fixed; inset: 0; display: grid; place-items: center; background: #0f1114ee; z-index: 10; }
+  #accueil .boite { max-width: 560px; padding: 24px 28px; background: #181b20; border: 1px solid #2a2f36; border-radius: 10px; }
+  #accueil h1 { margin: 0 0 4px; font-size: 22px; } #accueil p { color: var(--discret); }
+  #accueil button { font: inherit; padding: 8px 14px; margin: 4px 6px 0 0; border-radius: 6px; border: 1px solid #3a414a; background: #232830; color: var(--texte); cursor: pointer; }
+  #accueil button:hover { border-color: var(--accent); }
+  kbd { font: 11px ui-monospace, monospace; padding: 1px 5px; border: 1px solid #3a414a; border-radius: 4px; background: #232830; }
+  .lil-gui.root { --width: 300px; }
+  @media (max-width: 700px) { #carte { width: 120px; height: 120px; } #fil { left: 16px; bottom: 150px; width: calc(100vw - 32px); } #boussole { width: 220px; } }
+</style>
+</head>
+<body>
+<canvas id="vue"></canvas>
+<div class="hud" id="etat"></div>
+<div class="hud" id="boussole"><div></div></div>
+<div class="hud" id="suspicion"><i></i></div>
+<div class="hud" id="viseur"></div>
+<div class="hud" id="carte"><canvas width="256" height="256"></canvas></div>
+<div class="hud" id="fil"></div>
+<div class="hud" id="vitals"></div>
+<div id="accueil"><div class="boite">
+  <h1>Game 1 — prototype de scènes</h1>
+  <p>Monde ouvert stratégique &amp; RPG. Le rendu est en three.js, la simulation est le cœur C++ (WebAssembly) qui servira tel quel au moteur natif bgfx.</p>
+  <p><kbd>ZQSD</kbd>/<kbd>WASD</kbd> se déplacer · souris viser · clic gauche tirer · clic droit épauler · <kbd>Maj</kbd> sprint · <kbd>C</kbd> accroupi · <kbd>R</kbd> recharger ·
+     molette : zoom continu jusqu'à la carte stratégique · <kbd>M</kbd> carte · <kbd>T</kbd> terraformer (carte) · <kbd>Échap</kbd> libérer la souris</p>
+  <div id="scenarios"></div>
+  <p id="chargement"></p>
+</div></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

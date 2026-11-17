@@ -62,7 +62,7 @@ export class Coeur {
     // tous les appels (qui peuvent faire grandir la mémoire WebAssembly) AVANT de créer les vues : une vue créée plus tôt
     // serait détachée. Les vues renvoyées restent valides jusqu'au prochain appel au cœur.
     const n = this.x.g1_terrain_n(), pc = this.x.g1_cellules(), ph = this.x.g1_terrain_hauteurs();
-    return { n, cellule: this.x.g1_terrain_cellule(), taille: this.x.g1_terrain_taille(), revision: this.x.g1_terrain_revision(),
+    return { n, cellule: this.x.g1_terrain_cellule(), taille: this.x.g1_terrain_taille(), revision: this.x.g1_terrain_revision(), eau: this.x.g1_niveau_eau(),
              hauteurs: this.f32(ph, (n + 1) * (n + 1)), cellules: this.f32(pc, n * n * 4) };
   }
   heatmap(type) { const n = this.x.g1_terrain_n(); return this.f32(this.x.g1_heatmap(type), n * n); }

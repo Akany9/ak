@@ -7,11 +7,12 @@ const [sc = "berlin_1945.json", heures = "0.1", mode = "0", attendu] = process.a
 const R = new URL("../", import.meta.url), lire = (p) => readFileSync(new URL(p, R), "utf8");
 const c = await Coeur.create(readFileSync(new URL("g1_coeur.wasm", R)));
 const av = c.load({ materiaux: lire("data/materiaux.json"), armes: lire("data/armes.json"), scenario: lire("data/scenarios/" + sc), reglages: lire("data/reglages.json") });
+if (c.scriptNom()) c.script(lire("data/scripts/" + c.scriptNom()), c.scriptNom());
 c.mode(+mode); const t0 = performance.now(); let ticks = 0;
 while (c.etat()[1] < +heures * 3600) {
   c.tick(); ticks++;
   const e = c.str(c.x.g1_events()); if (+mode !== 0 && e.includes('"ralenti"')) c.mode(+mode);
 }
 const h = c.hash().toString(16).padStart(8, "0");
-console.log(`${sc} : ${heures} h (mode ${mode}) en ${ticks} ticks, ${((performance.now() - t0) / 1000).toFixed(2)} s, ${av.length} avertissement(s), empreinte ${h}`);
+console.log(`${sc} : ${heures} h (mode ${mode}) en ${ticks} ticks, état « ${c.narratif()} », ${((performance.now() - t0) / 1000).toFixed(2)} s, ${av.length} avertissement(s), empreinte ${h}`);
 if (attendu) { const ok = h === attendu; console.log(ok ? "identique au natif" : `DIFFÉRENTE du natif (${attendu})`); process.exit(ok ? 0 : 1); }

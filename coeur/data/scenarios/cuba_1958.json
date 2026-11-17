@@ -2,6 +2,7 @@
   "id": "cuba_1958",
   "nom": "Cuba, 1958 — de la Sierra Maestra à Santiago",
   "epoque": "Cuba (1956-1962) : de la guérilla à l'État",
+  "script": "cuba_1958.lua",
   "graine": 1958,
   "heure_depart": 6,
   "monde": { "taille": 4096, "cellule": 16, "alt_min": 0, "alt_max": 420, "rugosite": 0.45, "niveau_eau": 3 },
@@ -53,11 +54,6 @@
   ],
   "joueur": { "faction": "m26j", "statut": "commandant", "pos": [-1270, -1160], "arme": "m1_garand" },
   "actes": { "capital_acte_II": 120000 },
-  "chronologie": [
-    { "heure": 0.01, "type": "message",   "texte": "Sierra Maestra, 1958. Radio Rebelde émet depuis La Plata." },
-    { "heure": 2,    "type": "choc_prix", "cible": "biens", "valeur": 0.15, "texte": "Récolte sucrière : hausse des cours." },
-    { "heure": 4,    "type": "crise",     "cible": "regime", "valeur": 0.15, "texte": "Embargo américain sur les armes à destination du régime." },
-    { "heure": 8,    "type": "renforts",  "cible": "regime", "valeur": 12, "texte": "Offensive d'été : renforts gouvernementaux." },
-    { "heure": 12,   "type": "renforts",  "cible": "m26j",   "valeur": 8,  "texte": "Des volontaires rejoignent la colonne." }
-  ]
+  "chronologie": [],
+  "_chronologie": "la chronologie et la machine à états narrative sont dans le script Lua (champ script)"
 }

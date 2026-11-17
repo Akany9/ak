@@ -2,7 +2,7 @@
    aucune règle ni décision de jeu ici (même rôle que web/pg_gameplay.js dans PES Hub r88). Elle transmet les textes JSON
    au chargement, l'entrée du joueur à chaque image, et expose l'état (Float32Array partagés avec la mémoire WebAssembly)
    au rendu three.js. Fonctionne dans le navigateur et sous Node (tests). */
-export const STRIDE = { unite: 16, structure: 12, projectile: 7, convoi: 8, faction: 24, route: 5 };   // include/g1/api.h
+export const STRIDE = { unite: 18, structure: 13, projectile: 7, convoi: 8, faction: 24, route: 5 };   // include/g1/api.h
 export const MODE = { tactique: 0, exploration: 1, strategique: 2 };
 export const DECRETS = ["État d'urgence", "Couvre-feu", "Conscription", "Nationalisation", "Liberté de la presse", "Planche à billets", "Travail forcé"];
 export const POSTES = ["Éducation", "Défense", "Santé", "Infrastructures", "Dette"];
@@ -12,6 +12,7 @@ export const ROLES = ["résidentiel", "hôpital", "usine", "pont", "QG", "avant-
 export const ETATS_UNITE = ["patrouille", "engagement", "couverture", "repli", "mort", "joueur"];
 export const STATUTS = ["Voyageur", "Agent", "Commandant"];
 export const BOUTONS = { sprint: 1, accroupi: 2, tir: 4, visee: 8, recharger: 16 };
+export const METEOS = ["clair", "pluie", "brouillard", "pluie et brouillard", "neige"];
 
 export class Coeur {
   static async create(wasmBytes) {
@@ -46,6 +47,11 @@ export class Coeur {
     this.factionsIds = Array.from({ length: this.nf }, (_, i) => this.str(this.x.g1_faction_id(i)));
     return JSON.parse(this.str(this.x.g1_warnings()));
   }
+  scriptNom() { return this.str(this.x.g1_script_nom()); }
+  /* script Lua du scénario (module r88 : spawn_squad, set_weather, set_state…) */
+  script(source, nom) { const s = this.put(source), n = this.put(nom); const ok = this.x.g1_script(s, n); this.x.g1_free(s); this.x.g1_free(n);
+    if (!ok) throw new Error("script Lua : " + this.str(this.x.g1_error())); }
+  narratif() { return this.str(this.x.g1_narratif()); }
   step(dt) { this.x.g1_step(dt); }
   tick() { this.x.g1_tick(); }
   input(avant, cote, lacet, tangage, cam, boutons) { this.x.g1_input(avant, cote, lacet, tangage, cam.x, cam.y, cam.z, boutons); }
@@ -76,7 +82,7 @@ export class Coeur {
   strates(f) { return this.f32(this.x.g1_strates(f), 36); }
   decrets(f) { return this.f32(this.x.g1_decrets(f), DECRETS.length + POSTES.length); }
   tuiles() { const n = this.x.g1_tuiles_count(); return this.f32(this.x.g1_tuiles(), n * 2); }
-  etat() { return this.f32(this.x.g1_etat(), 32); }
+  etat() { return this.f32(this.x.g1_etat(), 40); }
   events() { return JSON.parse(this.str(this.x.g1_events())); }
   hash() { return this.x.g1_hash() >>> 0; }
 }

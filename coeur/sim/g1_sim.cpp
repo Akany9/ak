@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
   double heures = argc > 3 ? std::atof(argv[3]) : 1; int mode = argc > 4 ? std::atoi(argv[4]) : 0; bool ev = argc > 5 && !std::strcmp(argv[5], "--evenements");
   auto t0 = std::chrono::steady_clock::now();
   if (!g1_load(lire(d + "/materiaux.json").c_str(), lire(d + "/armes.json").c_str(), lire(sc).c_str(), lire(d + "/reglages.json").c_str())) { std::fprintf(stderr, "erreur : %s\n", g1_error()); return 1; }
+  if (*g1_script_nom() && !g1_script(lire(d + "/scripts/" + g1_script_nom()).c_str(), g1_script_nom())) { std::fprintf(stderr, "script : %s\n", g1_error()); return 1; }
   double tc = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
   std::printf("chargé en %.3f s — avertissements : %s\nterrain %d² cellules de %.0f m, %d structures, %d unités, %d arêtes routières\n", tc, g1_warnings(), g1_terrain_n(),
               g1_terrain_cellule(), g1_structures_count(), g1_unites_count(), g1_routes_count());
@@ -28,11 +29,11 @@ int main(int argc, char** argv) {
     std::string e = g1_events();
     if (e.find("\"ralenti\"") != std::string::npos && mode != 0) g1_mode(mode);   // banc : on garde la compression demandée
     for (size_t p = 0; (p = e.find("\"type\":\"", p)) != std::string::npos;) { p += 8; size_t q = e.find('"', p); std::string t = e.substr(p, q - p); types[t]++;
-      if (ev && t != "touche" && t != "impact" && t != "structure") { size_t a = e.rfind('{', p), b = e.find('}', q); std::printf("  [%7.2f h] %s\n", g1_etat()[1] / 3600, e.substr(a, b - a + 1).c_str()); } }
+      if (ev && t != "touche" && t != "impact" && t != "structure" && t != "mort") { size_t a = e.rfind('{', p), b = e.find('}', q); std::printf("  [%7.2f h] %s\n", g1_etat()[1] / 3600, e.substr(a, b - a + 1).c_str()); } }
   }
   double ts = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
   const float* E = g1_etat();
-  std::printf("\n%.2f h de jeu en %ld ticks, %.2f s réelles (×%.0f) — acte %d, statut %d, empreinte %08x\n", E[1] / 3600, ticks, ts, E[1] / ts, int(E[4]), int(E[5]), g1_hash());
+  std::printf("\n%.2f h de jeu en %ld ticks, %.2f s réelles (×%.0f) — acte %d, statut %d, état narratif « %s », empreinte %08x\n", E[1] / 3600, ticks, ts, E[1] / ts, int(E[4]), int(E[5]), g1_narratif(), g1_hash());
   const float* F = g1_factions(); const float* U = g1_unites();
   for (int i = 0; i < g1_factions_count(); ++i) {
     const float* f = F + i * G1_STRIDE_FACTION; int vivants = 0, morts = 0;

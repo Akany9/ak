@@ -20,6 +20,7 @@ static bool charger(Donnees& d, const std::string& sc) {
 }
 static unsigned partie(const std::string& sc, int ticks) {
   g1_load(lire(D_ + "/materiaux.json").c_str(), lire(D_ + "/armes.json").c_str(), lire(D_ + "/scenarios/" + sc).c_str(), lire(D_ + "/reglages.json").c_str());
+  g1_script(lire(D_ + "/scripts/" + g1_script_nom()).c_str(), g1_script_nom());
   for (int i = 0; i < ticks; ++i) { g1_tick(); g1_events(); }
   return g1_hash();
 }
@@ -106,6 +107,32 @@ int main(int argc, char** argv) {
   {  // déterminisme : même graine → même empreinte
     unsigned a = partie("berlin_1945.json", 2400), b = partie("berlin_1945.json", 2400), c = partie("cuba_1958.json", 1200), e = partie("cuba_1958.json", 1200);
     VERIFIER(a == b && c == e, "déterminisme : Berlin %08x = %08x, Cuba %08x = %08x", a, b, c, e);
+  }
+  {  // scripts Lua (sol2) : chargement, hooks, machine à états narrative, erreurs rattrapées
+    Monde m(d); std::string err; bool ok = m.chargerScript(lire(D_ + "/scripts/berlin_1945.lua"), "berlin_1945.lua", err);
+    size_t u0 = m.unites.size(); std::string e = m.evenements();
+    VERIFIER(ok && m.narratif == "arrivee" && m.meteo == 3 && m.unites.size() == u0 && e.find("script_charge") != std::string::npos,
+             "script Berlin : on_scenario_init exécuté (état « %s », météo %d, %zu unités)", m.narratif.c_str(), m.meteo, m.unites.size());
+    Monde m2(d); bool ok2 = m2.chargerScript("function on_hour(h) error('volontaire') end", "erreur.lua", err);
+    m2.definirEchelle(Mode::Strategique); for (int t = 0; t < 40; ++t) m2.tick(); std::string e2 = m2.evenements();
+    VERIFIER(ok2 && e2.find("erreur_script") != std::string::npos, "erreur Lua dans on_hour : rattrapée, la simulation continue");
+    Monde m3(d); bool refus = !m3.chargerScript("ceci n'est pas du Lua", "x.lua", err);
+    VERIFIER(refus && !err.empty(), "script invalide refusé au chargement : %s", err.substr(0, 60).c_str());
+    Monde m4(d); m4.chargerScript("function on_event(t, j) if t == 'pont_coupe' then r88.set_state('pont') end end", "e.lua", err);
+    int pont = -1; for (size_t i = 0; i < m4.structures.size(); ++i) if (m4.structures[i].c.role == Role::Pont) pont = int(i);
+    m4.degatsStructure(pont, 1e9f, 0, 0, 0); m4.tick(); VERIFIER(m4.narratif == "pont", "on_event : transition narrative sur « pont_coupe »");
+  }
+  {  // Zero AI Content : négociation par Utility AI, déterministe, sans modèle génératif
+    Monde m(d); m.factions[1].moral = 0.1f; m.factions[1].stabilite = 0.1f; float u = 0;
+    u = utiliteArmistice(m, 0, 1);
+    m.evenements(); m.negocier(0, 1, 0.4f); std::string e = m.evenements();
+    VERIFIER(u > 0.25f && e.find("\"traite\"") != std::string::npos && e.find("\"accord\":true") != std::string::npos, "armistice : utilité %.2f pour une faction démoralisée → accepté", u);
+    Monde m2(d); m2.evenements(); m2.negocier(1, 0, 0.4f); std::string e2 = m2.evenements();
+    VERIFIER(e2.find("\"negociation\"") != std::string::npos, "armistice adressé au joueur : décision laissée au joueur (événement « negociation »)");
+  }
+  {  // SimLOD : hors de la bulle TPS, simulation 2D ; dans la bulle, simulation 3D complète
+    Monde m(d); m.tick();
+    VERIFIER(m.nbMacro > 0 && m.nbDetaillees > 0, "SimLOD : %d unités détaillées dans la bulle de %.0f m, %d en simulation vectorielle", m.nbDetaillees, d.reglages.bulleTps, m.nbMacro);
   }
   {  // stratégique : 30 jours, économie finie, acte avancé
     g1_load(lire(D_ + "/materiaux.json").c_str(), lire(D_ + "/armes.json").c_str(), lire(D_ + "/scenarios/cuba_1958.json").c_str(), lire(D_ + "/reglages.json").c_str());

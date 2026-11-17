@@ -62,7 +62,7 @@ bool chargerDonnees(Donnees& d, const char* tMat, const char* tArmes, const char
     d.materiaux.push_back(x);
   }
   if (d.materiaux.empty()) d.materiaux.push_back(Materiau{"defaut"});
-  auto mat = [&](const J& o) { auto it = o.find("materiau"); if (it != o.end() && it->is_string()) for (size_t i = 0; i < d.materiaux.size(); ++i) if (d.materiaux[i].nom == *it) return int(i); return 0; };
+  auto mat = [&](const J& o) { auto it = o.find("materiau"); if (it != o.end() && it->is_string()) for (size_t i = 0; i < d.materiaux.size(); ++i) if (d.materiaux[i].nom == it->get<std::string>()) return int(i); return 0; };
 
   for (auto& a : ja["armes"]) {
     Arme x; L.ctx = "armes"; L.str(a, "id", x.id); L.str(a, "nom", x.nom); L.ctx += "." + x.id;
@@ -75,7 +75,7 @@ bool chargerDonnees(Donnees& d, const char* tMat, const char* tArmes, const char
   if (d.armes.empty()) { erreur = "armes.json : aucune arme"; return false; }
 
   ScenarioCfg& s = d.scenario; L.ctx = "scenario";
-  L.str(js, "id", s.id); L.str(js, "nom", s.nom); L.str(js, "epoque", s.epoque); L.opt(js, "graine", s.graine); L.opt(js, "heure_depart", s.heureDepart);
+  L.str(js, "id", s.id); L.str(js, "nom", s.nom); L.str(js, "epoque", s.epoque); L.str(js, "script", s.script); L.opt(js, "graine", s.graine); L.opt(js, "heure_depart", s.heureDepart);
   if (auto w = js.find("monde"); w != js.end() && w->is_object()) {
     L.ctx = "scenario.monde"; L.num(*w, "taille", s.taille); L.num(*w, "cellule", s.cellule); L.num(*w, "alt_min", s.altMin); L.num(*w, "alt_max", s.altMax);
     L.num(*w, "rugosite", s.rugosite); L.opt(*w, "niveau_eau", s.niveauEau);
@@ -137,6 +137,7 @@ bool chargerDonnees(Donnees& d, const char* tMat, const char* tArmes, const char
   L.num(jr, "suppression_seuil", g.suppressionSeuil); L.num(jr, "capture_rayon", g.captureRayon); L.num(jr, "capture_temps", g.captureTemps);
   L.num(jr, "ravitaillement_rayon", g.ravitaillementRayon); L.num(jr, "convoi_vitesse", g.convoiVitesse); L.num(jr, "convoi_charge", g.convoiCharge);
   L.num(jr, "inflation_inertie", g.inflationInertie); L.num(jr, "fmi_seuil", g.fmiSeuil); L.num(jr, "fmi_pret", g.fmiPret);
+  L.num(jr, "bulle_tps", g.bulleTps); L.num(jr, "chunk", g.chunk); L.num(jr, "rayon_action", g.rayonAction);
   L.num(jr, "suspicion_montee", g.suspicionMontee); L.num(jr, "suspicion_descente", g.suspicionDescente); L.num(jr, "sanctions_duree", g.sanctionsDuree);
   return true;
 }

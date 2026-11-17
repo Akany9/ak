@@ -2,6 +2,7 @@
   "id": "berlin_1945",
   "nom": "Berlin, avril 1945 — la Spree",
   "epoque": "Seconde Guerre mondiale : Europe (1939-1945)",
+  "script": "berlin_1945.lua",
   "graine": 1945,
   "heure_depart": 7.5,
   "monde": { "taille": 2048, "cellule": 8, "alt_min": 30, "alt_max": 52, "rugosite": 0.45, "niveau_eau": 31 },
@@ -57,12 +58,6 @@
   ],
   "joueur": { "faction": "armee_rouge", "statut": "agent", "pos": [40, -250], "arme": "mosin_9130" },
   "actes": { "capital_acte_II": 4500000 },
-  "chronologie": [
-    { "heure": 0.01, "type": "message",   "texte": "29 avril 1945, 7 h 30. Ponts de la Spree. Reconnaître le dispositif adverse avant l'assaut." },
-    { "heure": 0.5,  "type": "renforts",  "cible": "armee_rouge", "valeur": 8, "texte": "Arrivée d'une compagnie de fusiliers." },
-    { "heure": 2,    "type": "choc_prix", "cible": "nourriture", "valeur": 0.6, "texte": "Pénurie alimentaire dans la ville assiégée." },
-    { "heure": 3,    "type": "crise",     "cible": "wehrmacht", "valeur": 0.2, "texte": "Désertions dans les unités de la défense." },
-    { "heure": 6,    "type": "famine",    "cible": "wehrmacht", "valeur": 0.4, "texte": "Les dépôts de vivres du secteur sud sont épuisés." },
-    { "heure": 12,   "type": "statut",    "valeur": 2, "texte": "Commandement d'une section confié au joueur." }
-  ]
+  "chronologie": [],
+  "_chronologie": "la chronologie et la machine à états narrative sont dans le script Lua (champ script)"
 }

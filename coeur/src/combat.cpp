@@ -84,7 +84,7 @@ void Monde::degatsStructure(int si, float degats, int faction, double, double) {
   if (s.etat == 2) return; s.pv -= degats / std::max(0.1f, m.resistance);
   if (s.etat == 0 && s.pv < s.pvMax * 0.6f) { s.etat = 1; emettre("{\"type\":\"structure\",\"id\":" + std::to_string(si) + ",\"etat\":1}"); }
   if (s.pv > 0) return;
-  s.etat = 2; s.pv = 0;   // bascule vers le maillage pré-fracturé (le rendu remplace le modèle intact)
+  s.etat = 2; s.pv = 0; s.chaleur = 1;   // bascule vers le maillage pré-fracturé ; incendie (signature thermique)
   emettre("{\"type\":\"structure\",\"id\":" + std::to_string(si) + ",\"etat\":2,\"role\":" + std::to_string(int(s.c.role)) + ",\"par\":" + std::to_string(faction) + "}");
   for (double x = s.c.x - s.c.l * 0.5; x <= s.c.x + s.c.l * 0.5; x += cell)   // valeur foncière et capacité effondrées
     for (double z = s.c.z - s.c.p * 0.5; z <= s.c.z + s.c.p * 0.5; z += cell) {
@@ -131,7 +131,8 @@ void Monde::tirer(Unite& u, float lacet, float tangage) {
     u.enraye = true; if (u.humain) emettre("{\"type\":\"enrayement\",\"usure\":" + std::to_string(u.usure) + "}"); return;
   }
   float v2 = u.vx * u.vx + u.vz * u.vz;
-  float disp = a.dispersionMoa * MOA * (1 + 1.5f * u.bras + 2.f * u.suppression + std::min(2.f, v2 * 0.2f) + (u.humain && entree.visee ? -0.5f : 0.f));
+  float disp = a.dispersionMoa * MOA * (1 + 1.5f * u.bras + 2.f * u.suppression + std::min(2.f, v2 * 0.2f) + (u.humain && entree.visee ? -0.5f : 0.f) + (meteo == 1 || meteo == 3 ? 0.5f * meteoIntensite : 0.f));
+  u.chaleur = std::min(1.f, u.chaleur + 0.03f);   // canon chaud
   lacet += rng.gauss() * disp; tangage += rng.gauss() * disp;
   Projectile p{}; p.x = u.x + dsin(u.lacet) * 0.3; p.y = u.y + (u.couvert ? 1.05 : 1.45); p.z = u.z + dcos(u.lacet) * 0.3;
   double c = dcos(tangage); p.vx = a.v0 * dsin(lacet) * c; p.vy = a.v0 * dsin(tangage); p.vz = a.v0 * dcos(lacet) * c;
@@ -285,7 +286,9 @@ void Monde::tickIA(Unite& u, double dt) {
   u.percevoir -= float(dt);
   if (u.percevoir <= 0) {   // perception échelonnée : champ de vision, portée jour/nuit, ligne de vue réelle
     u.percevoir = R.delaiPerception; bool nuit = heure - 24 * std::floor(heure / 24) < 5.5 || heure - 24 * std::floor(heure / 24) > 20.5;
-    double portee = nuit ? R.perceptionNuit : R.perception, best = portee; int cible = -1;
+    double portee = nuit ? R.perceptionNuit : R.perception;
+    if (meteo == 2 || meteo == 3) portee *= 1 - 0.6 * meteoIntensite; else if (meteo == 1 || meteo == 4) portee *= 1 - 0.3 * meteoIntensite;   // météo scriptée
+    double best = portee; int cible = -1;
     for (auto& o : unites) {
       if (!hostile(*this, u, o)) continue; double dx = o.x - u.x, dz = o.z - u.z, d = dhypot(dx, dz); if (d > best) continue;
       if (std::fabs(ang(datan2(dx, dz) - u.lacet)) > R.champVision * 0.5 && u.cible != o.id && d > 12) continue;
@@ -358,15 +361,58 @@ void Monde::tickIA(Unite& u, double dt) {
   }
 }
 
+// SimLOD (document d'architecture r88, chantier 2) : hors de la bulle TPS, une unité n'a ni lancer de rayon, ni
+// collision avec les bâtiments, ni projectile : déplacement 2D le long du graphe routier et combat par attrition
+// (tirage déterministe), jusqu'à ce qu'elle entre dans la bulle où elle retrouve la simulation 3D complète.
+void Monde::tickMacro(Unite& u, double dt) {
+  const Reglages& R = D.reglages; const Arme& a = D.armes[size_t(u.arme) % D.armes.size()];
+  u.suppression = std::max(0.f, u.suppression - 0.25f * float(dt)); u.couvert = false;
+  double tx = u.objX, tz = u.objZ;
+  if (dhypot(tx - u.x, tz - u.z) > 150) {
+    if (u.routeX != u.objX || u.routeZ != u.objZ) { u.route = chemin(noeudProche(u.x, u.z), noeudProche(u.objX, u.objZ)); u.routeEtape = 0; u.routeX = u.objX; u.routeZ = u.objZ; }
+    while (u.routeEtape < int(u.route.size()) && dhypot(noeuds[u.route[u.routeEtape]].x - u.x, noeuds[u.route[u.routeEtape]].z - u.z) < 4) ++u.routeEtape;
+    if (u.routeEtape < int(u.route.size())) { tx = noeuds[u.route[u.routeEtape]].x; tz = noeuds[u.route[u.routeEtape]].z; }
+  }
+  double dx = tx - u.x, dz = tz - u.z, d = dhypot(dx, dz);
+  if (d > 1.5) { double v = R.course * 0.7 * (1 - 0.6 * u.jambe) * dt; u.x += dx / d * std::min(v, d); u.z += dz / d * std::min(v, d); u.lacet = float(datan2(dx, dz)); }
+  u.vx = u.vz = 0; u.y = hauteur(u.x, u.z);
+  if ((u.macroTir -= float(dt)) > 0) return;
+  u.macroTir = 1.f;   // une résolution par seconde
+  Unite* cible = nullptr; double best = std::min<double>(a.portee, 150);
+  for (auto& o : unites) {
+    if (o.faction == u.faction || !vivant(o) || o.humain || !guerre[size_t(u.faction) * factions.size() + o.faction]) continue;
+    double k = dhypot(o.x - u.x, o.z - u.z); if (k < best) { best = k; cible = &o; }
+  }
+  if (!cible || u.munitions <= 0) { if (u.munitions <= 0 && u.reserve > 0) { int p = std::min(u.reserve, a.chargeur); u.munitions += p; u.reserve -= p; } return; }
+  u.munitions = std::max(0, u.munitions - std::max(1, int(a.cadenceRpm / 120))); u.chaleur = std::min(1.f, u.chaleur + 0.05f);
+  float p = 0.12f * float(1 - best / 200.0) * (1 - 0.5f * u.suppression) * (cible->couvert ? 0.5f : 1.f);
+  cible->suppression = std::min(1.f, cible->suppression + 0.2f);
+  if (rng.unif() < p) {
+    cible->pv -= a.degats * 0.6f;
+    if (cible->pv <= 0) { cible->etat = EtatUnite::Mort; emettre("{\"type\":\"mort\",\"unite\":" + std::to_string(cible->id) + ",\"par\":" + std::to_string(u.id) + ",\"simlod\":true}"); }
+  }
+}
+
 void Monde::tickCombat(double dt) {
   for (auto& f : factions) f.unitesVivantes = 0;
+  const Unite& J = unites[joueur]; nbDetaillees = nbMacro = 0;
   for (auto& u : unites) {
-    if (!vivant(u)) continue; factions[u.faction].unitesVivantes++;
+    if (!vivant(u)) { u.chaleur = std::max(0.3f, u.chaleur - 0.002f * float(dt)); continue; }   // le corps refroidit
+    factions[u.faction].unitesVivantes++;
+    u.chaleur += (0.85f - u.chaleur) * std::min(1.f, 0.2f * float(dt));
+    bool macro = !u.humain && dhypot(u.x - J.x, u.z - J.z) > D.reglages.bulleTps;
+    if (macro) {
+      if (!u.macro) { u.macro = true; u.cible = -1; }
+      ++nbMacro; u.cadence = std::max(0.f, u.cadence - float(dt)); tickMacro(u, dt); continue;
+    }
+    if (u.macro) { u.macro = false; u.routeX = 1e30; }   // entrée dans la bulle : réinstanciation 3D complète
+    ++nbDetaillees;
     const Arme& a = D.armes[size_t(u.arme) % D.armes.size()];
     u.cadence = std::max(0.f, u.cadence - float(dt));
     if (u.recharge > 0) { u.recharge -= float(dt); if (u.recharge <= 0) { int pris = std::min(u.reserve, a.chargeur - u.munitions); u.munitions += pris; u.reserve -= pris; u.enraye = false; u.recharge = 0; } }
     if (u.humain) tickJoueur(u, dt); else tickIA(u, dt);
   }
+  for (auto& s : structures) s.chaleur += (0.25f - s.chaleur) * std::min(1.f, 0.002f * float(dt));   // incendies qui s'éteignent
   tickProjectiles(dt);
 }
 

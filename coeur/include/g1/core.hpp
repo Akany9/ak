@@ -54,7 +54,7 @@ struct QuartierCfg { double x0, z0, x1, z1; Zone zone; float densite = 0.6f, hau
 struct EscouadeCfg { int faction = 0; double x = 0, z = 0; int nb = 4; std::string arme; double objX = 0, objZ = 0; };
 struct EvenementCfg { double heure = 0; std::string type, cible; float valeur = 0; std::string texte; };   // séquenceur (« logiciel de montage »)
 struct ScenarioCfg {
-  std::string id, nom, epoque; uint64_t graine = 1;
+  std::string id, nom, epoque, script; uint64_t graine = 1;
   double taille = 2048, cellule = 8;      // côté du monde (m) et pas de la grille
   float altMin = 30, altMax = 60, rugosite = 0.5f, niveauEau = -1;
   std::vector<std::array<double, 5>> aplanir;   // x0 z0 x1 z1 altitude (zones urbaines)
@@ -71,18 +71,20 @@ struct Reglages {   // valeurs DÉCLARÉES (absentes du document), chacune justi
   float suppressionSeuil = 0.6f, captureRayon = 25, captureTemps = 10, ravitaillementRayon = 15;
   float convoiVitesse = 12, convoiCharge = 400, inflationInertie = 0.92f, fmiSeuil = -2e5f, fmiPret = 1e6f;
   float suspicionMontee = 0.08f, suspicionDescente = 0.03f, sanctionsDuree = 720;
+  float bulleTps = 350, chunk = 64, rayonAction = 900;   // SimLOD et streaming (document d'architecture r88, § 2)
 };
 
 // ------------------------------------------------------------------------------------------------ état (temps réel)
 struct Cellule { Zone zone = Zone::Aucune; Biome biome = Biome::Prairie; uint8_t verrou = 0; int8_t proprio = -1;
   float humidite = 0.5f, usure = 0, ressource = 0, densite = 0, pib = 0, chomage = 0.1f, pollution = 0; };
-struct Structure { StructureCfg c; float pv = 1, pvMax = 1; uint8_t etat = 0; int arete = -1; double y = 0; float stock[NB_BIENS] = {}; float capture = 0; int captureFaction = -1; };
+struct Structure { StructureCfg c; float pv = 1, pvMax = 1, chaleur = 0.25f; uint8_t etat = 0; int arete = -1; double y = 0; float stock[NB_BIENS] = {}; float capture = 0; int captureFaction = -1; };
 struct Unite {
   int id = 0, faction = 0, escouade = -1, arme = 0; double x = 0, y = 0, z = 0; float vx = 0, vz = 0, lacet = 0, tangage = 0;
-  float pv = 100, jambe = 0, bras = 0, suppression = 0, usure = 0, garde = 0; int munitions = 30, reserve = 120;
+  float pv = 100, jambe = 0, bras = 0, suppression = 0, usure = 0, garde = 0, chaleur = 0.85f; int munitions = 30, reserve = 120;   // chaleur : signature thermique (FLIR)
   float cadence = 0, recharge = 0, percevoir = 0; int cible = -1; EtatUnite etat = EtatUnite::Patrouille; bool humain = false, couvert = false, enraye = false;
   double objX = 0, objZ = 0, abriX = 0, abriZ = 0;
   std::vector<int> route; int routeEtape = 0; double routeX = 1e30, routeZ = 1e30;   // itinéraire routier (A*) vers l'objectif
+  bool macro = false; float macroTir = 0;   // SimLOD : hors de la bulle TPS, simulation 2D vectorielle
 };
 struct Projectile { double x, y, z, vx, vy, vz; float penetration, degats, vie; int tireur, faction, arme; bool actif; };
 struct Convoi { int faction, origine, destination; std::vector<int> chemin; int etape = 0; double x = 0, z = 0; float lacet = 0, pv = 300; int bien = Munitions; float quantite = 0; uint8_t etat = 0; };

@@ -7,6 +7,8 @@
 #include "core.hpp"
 #include "maths.hpp"
 #include "rng.hpp"
+#include "script.hpp"
+#include <memory>
 
 namespace g1 {
 
@@ -23,6 +25,8 @@ struct Touche { double t = 0; double x = 0, y = 0, z = 0; int unite = -1, struct
 class Monde {
  public:
   explicit Monde(const Donnees& d);
+  ~Monde();
+  bool chargerScript(const std::string& source, const std::string& nom, std::string& erreur);
   // --- boucle
   void avancer(double dtReel);   // accumulateur : appelle tick() à 20 Hz, borne la spirale de la mort à 8 ticks
   void tick();
@@ -54,6 +58,8 @@ class Monde {
   std::vector<int> tuilesActives; bool terrainModifie = true; int revisionTerrain = 0;
   size_t prochainEvenement = 0;
   std::string journal;   // événements JSON en attente
+  std::unique_ptr<Script> script; std::vector<std::pair<std::string, std::string>> aDiffuser; bool diffusion = false;
+  std::string narratif = "arrivee"; int meteo = 0; float meteoIntensite = 0; int nbDetaillees = 0, nbMacro = 0;
 
   // --- modules (un fichier par module)
   void genererTerritoire();                            // territoire.cpp  (4.1)
@@ -65,10 +71,12 @@ class Monde {
   void tickEconomie();                                 // economie.cpp (4.3, 4.4)
   void tickSociete();                                  // societe.cpp (4.5, 4.10)
   void tickDiplomatie();                               // diplomatie.cpp (4.6, 4.8)
+  void negocier(int a, int b, float rapport);
   void tickCombat(double dt);                          // combat.cpp (4.7)
   void tickProjectiles(double dt);
   void tickIA(Unite& u, double dt);
   void tickJoueur(Unite& u, double dt);
+  void tickMacro(Unite& u, double dt);   // SimLOD
   void tirer(Unite& u, float lacet, float tangage);
   void degatsStructure(int s, float degats, int faction, double x, double z);
   void explosion(double x, double y, double z, const Arme& a, int faction, int tireur);
@@ -85,5 +93,7 @@ class Monde {
   int creerUnite(int faction, double x, double z, int arme, bool humain);
   float sol(double x, double z) const { return (float)hauteur(x, z); }
 };
+
+float utiliteArmistice(const Monde& m, int a, int b);   // diplomatie.cpp : Utility AI (vue du destinataire b)
 
 }  // namespace g1

@@ -17,5 +17,8 @@
   "inflation_inertie": 0.92,
   "fmi_seuil": -200000,     "fmi_pret": 1000000,
   "suspicion_montee": 0.08, "suspicion_descente": 0.03, "_suspicion": "par seconde : ~12 s exposé et armé avant d'être démasqué",
+  "bulle_tps": 350,         "_bulle_tps": "m : rayon de la bulle d'action TPS ; au-delà, SimLOD (simulation 2D vectorielle, sans lancer de rayon)",
+  "chunk": 64,              "_chunk": "m : côté des chunks de streaming (document d'architecture r88, § 2)",
+  "rayon_action": 900,      "_rayon_action": "m : chunks chargés autour du joueur",
   "sanctions_duree": 720,   "_sanctions_duree": "heures de jeu (30 jours) pour la levée complète d'un embargo"
 }

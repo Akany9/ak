@@ -28,6 +28,9 @@ int g1_load(const char* mat, const char* armes, const char* scen, const char* re
   return 1;
 }
 const char* g1_error(void) { return g_err.c_str(); }
+int g1_script(const char* src, const char* nom) { if (!pret()) return 0; return g_m->chargerScript(src ? src : "", nom ? nom : "scenario.lua", g_err) ? 1 : 0; }
+const char* g1_script_nom(void) { return pret() ? g_m->D.scenario.script.c_str() : ""; }
+const char* g1_narratif(void) { return pret() ? g_m->narratif.c_str() : ""; }
 const char* g1_warnings(void) { return g_warn.c_str(); }
 void g1_step(float dt) { if (pret()) g_m->avancer(dt); }
 void g1_tick(void) { if (pret()) g_m->tick(); }
@@ -74,7 +77,7 @@ const float* g1_structures(void) {
   for (size_t i = 0; i < S.size(); ++i) {
     const Structure& s = S[i]; float* o = &b_struct[i * G1_STRIDE_STRUCTURE];
     o[0] = float(s.c.x - g_m->origineX); o[1] = float(s.y); o[2] = float(s.c.z - g_m->origineZ); o[3] = s.c.l; o[4] = s.c.h; o[5] = s.c.p; o[6] = s.c.lacet;
-    o[7] = s.etat; o[8] = float(s.c.role); o[9] = s.pvMax > 0 ? s.pv / s.pvMax : 0; o[10] = float(s.c.faction); o[11] = float(s.c.materiau);
+    o[7] = s.etat; o[8] = float(s.c.role); o[9] = s.pvMax > 0 ? s.pv / s.pvMax : 0; o[10] = float(s.c.faction); o[11] = float(s.c.materiau); o[12] = s.chaleur;
   }
   return b_struct.data();
 }
@@ -84,7 +87,7 @@ const float* g1_unites(void) {
   for (size_t i = 0; i < U.size(); ++i) {
     const Unite& u = U[i]; float* o = &b_unites[i * G1_STRIDE_UNITE];
     o[0] = float(u.x - g_m->origineX); o[1] = float(u.y); o[2] = float(u.z - g_m->origineZ); o[3] = u.lacet; o[4] = u.tangage; o[5] = std::sqrt(u.vx * u.vx + u.vz * u.vz);
-    o[6] = u.pv; o[7] = float(u.faction); o[8] = float(u.etat); o[9] = float(u.arme); o[10] = float(u.munitions); o[11] = u.jambe; o[12] = u.bras; o[13] = u.humain; o[14] = u.couvert; o[15] = float(u.id);
+    o[6] = u.pv; o[7] = float(u.faction); o[8] = float(u.etat); o[9] = float(u.arme); o[10] = float(u.munitions); o[11] = u.jambe; o[12] = u.bras; o[13] = u.humain; o[14] = u.couvert; o[15] = float(u.id); o[16] = u.macro; o[17] = u.chaleur;
   }
   return b_unites.data();
 }
@@ -137,8 +140,8 @@ const float* g1_decrets(int f) {
 }
 int g1_tuiles_count(void) { return pret() ? int(g_m->tuilesActives.size()) : 0; }
 const float* g1_tuiles(void) {
-  if (!pret()) return nullptr; b_tuiles.clear(); int nt = int(std::ceil(g_m->taille / TUILE));
-  for (int t : g_m->tuilesActives) { b_tuiles.push_back(float(-g_m->taille * 0.5 + (t % nt + 0.5) * TUILE - g_m->origineX)); b_tuiles.push_back(float(-g_m->taille * 0.5 + (t / nt + 0.5) * TUILE - g_m->origineZ)); }
+  if (!pret()) return nullptr; b_tuiles.clear(); const double C = g_m->D.reglages.chunk; int nt = int(std::ceil(g_m->taille / C));
+  for (int t : g_m->tuilesActives) { b_tuiles.push_back(float(-g_m->taille * 0.5 + (t % nt + 0.5) * C - g_m->origineX)); b_tuiles.push_back(float(-g_m->taille * 0.5 + (t / nt + 0.5) * C - g_m->origineZ)); }
   return b_tuiles.data();
 }
 const float* g1_etat(void) {
@@ -147,7 +150,8 @@ const float* g1_etat(void) {
   o[8] = float(m.origineX); o[9] = float(m.origineZ); o[10] = float(u.munitions); o[11] = float(u.reserve); o[12] = u.recharge; o[13] = u.enraye; o[14] = u.pv; o[15] = u.usure;
   o[16] = float(m.D.scenario.factionJoueur); o[17] = float(m.tuilesActives.size());
   for (int b = 0; b < NB_BIENS; ++b) { o[18 + b] = m.prix[b]; o[24 + b] = m.prixNoir[b]; }
-  o[30] = float(m.ticks & 0xffffff); o[31] = float(m.revisionTerrain);
+  o[30] = float(m.ticks & 0xffffff); o[31] = float(m.revisionTerrain); o[32] = float(m.meteo); o[33] = m.meteoIntensite;
+  o[34] = float(m.nbDetaillees); o[35] = float(m.nbMacro); o[36] = m.D.reglages.chunk; o[37] = m.D.reglages.rayonAction;
   return o;
 }
 const char* g1_events(void) { if (!pret()) return "[]"; g_ev = g_m->evenements(); return g_ev.c_str(); }

@@ -41,7 +41,18 @@ Monde::Monde(const Donnees& d) : D(d), rng(d.scenario.graine) {
   emettre("{\"type\":\"debut\",\"scenario\":\"" + s.id + "\",\"acte\":1}");
 }
 
-void Monde::emettre(const std::string& j) { if (journal.size() > (1u << 20)) return; if (!journal.empty()) journal += ','; journal += j; }
+void Monde::emettre(const std::string& j) {
+  if (journal.size() > (1u << 20)) return; if (!journal.empty()) journal += ','; journal += j;
+  if (script && !diffusion && aDiffuser.size() < 4096) {   // relayé au script (on_event) en fin de tick
+    size_t p = j.find("\"type\":\""); if (p != std::string::npos) { p += 8; aDiffuser.emplace_back(j.substr(p, j.find('"', p) - p), j); }
+  }
+}
+Monde::~Monde() = default;
+bool Monde::chargerScript(const std::string& src, const std::string& nom, std::string& erreur) {
+  script = std::make_unique<Script>(*this);
+  if (!script->charger(src, nom, erreur)) { script.reset(); return false; }
+  emettre("{\"type\":\"script_charge\",\"nom\":\"" + nom + "\"}"); return true;
+}
 std::string Monde::evenements() { std::string r = "[" + journal + "]"; journal.clear(); return r; }
 
 void Monde::definirEchelle(Mode m) {
@@ -72,18 +83,24 @@ void Monde::tick() {
   tickLogistique(dtJeu);
   const double hApres = temps / 3600.0;
   for (int h = int(std::floor(hAvant)) + 1; h <= int(std::floor(hApres)); ++h) {   // une fois par heure de jeu
-    tickEconomie(); tickSociete(); expedierHoraire(*this);
+    tickEconomie(); tickSociete(); expedierHoraire(*this); if (script) script->heure(h);
     if (h % 24 == 0) { tickDiplomatie(); services(); }
   }
   if (ticks % 10 == 0) tickBrouillard();
   tickChronologie(); tickStreaming(); tickOrigine(); tickActes();
+  if (script && !aDiffuser.empty()) {   // diffusion des événements du tick au script (pas de récursion)
+    std::vector<std::pair<std::string, std::string>> lot; lot.swap(aDiffuser); diffusion = true;
+    for (auto& [t, j] : lot) if (t != "touche" && t != "impact") script->evenement(t, j);
+    diffusion = false;
+  }
 }
 
 void Monde::tickStreaming() {   // tuiles 512 m dont le centre est à ≤ 2 km du joueur (chargement asynchrone côté hôte)
-  const Unite& u = unites[joueur]; std::vector<int> t; int nt = int(std::ceil(taille / TUILE));
+  // document d'architecture r88 : chunks de 64 × 64 m chargés dans le rayon d'action du joueur (réglages)
+  const Unite& u = unites[joueur]; std::vector<int> t; const double C = D.reglages.chunk; int nt = int(std::ceil(taille / C));
   for (int j = 0; j < nt; ++j) for (int i = 0; i < nt; ++i) {
-    double cx = -taille * 0.5 + (i + 0.5) * TUILE, cz = -taille * 0.5 + (j + 0.5) * TUILE;
-    if (dhypot(cx - u.x, cz - u.z) <= RAYON_STREAMING) t.push_back(j * nt + i);
+    double cx = -taille * 0.5 + (i + 0.5) * C, cz = -taille * 0.5 + (j + 0.5) * C;
+    if (dhypot(cx - u.x, cz - u.z) <= D.reglages.rayonAction) t.push_back(j * nt + i);
   }
   if (t != tuilesActives) { tuilesActives.swap(t); emettre("{\"type\":\"tuiles\",\"n\":" + std::to_string(tuilesActives.size()) + "}"); }
 }

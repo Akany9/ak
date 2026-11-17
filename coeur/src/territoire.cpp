@@ -27,6 +27,23 @@ double Monde::hauteur(double x, double z) const {
   return (u > v) ? a + (b - a) * u + (d - b) * v : a + (d - c) * u + (c - a) * v;
 }
 
+// splatmap RGBA8 (document r88, § 7) : r herbe, g terre, b roche, a neige — poids normalisés à 255 par cellule
+void calculerSplat(Monde& m) {
+  const int w = m.n + 1; const auto& s = m.D.scenario; m.splat.assign(size_t(m.n) * m.n * 4, 0);
+  const float neige = s.altMin + (s.altMax - s.altMin) * 0.9f;
+  for (int j = 0; j < m.n; ++j)
+    for (int i = 0; i < m.n; ++i) {
+      const Cellule& c = m.cellules[size_t(j) * m.n + i];
+      float a = m.h[j * w + i], b = m.h[j * w + i + 1], d = m.h[(j + 1) * w + i], moy = (a + b + d + m.h[(j + 1) * w + i + 1]) * 0.25f;
+      float pente = std::max(std::fabs(b - a), std::fabs(d - a)) / float(m.cell);
+      float roche = std::clamp((pente - 0.25f) / 0.4f, 0.f, 1.f), terre = std::clamp(c.usure + (c.biome == Biome::Urbain || c.biome == Biome::Sable ? 0.7f : 0.f) + (c.biome == Biome::Marais ? 0.3f : 0.f), 0.f, 1.f);
+      float blanc = (s.altMax - s.altMin) > 300 ? std::clamp((moy - neige) / 40.f, 0.f, 1.f) : 0.f;
+      float herbe = std::max(0.f, 1 - roche - terre - blanc), t = herbe + terre + roche + blanc + 1e-6f;
+      uint8_t* p = &m.splat[(size_t(j) * m.n + i) * 4];
+      p[0] = uint8_t(255 * herbe / t); p[1] = uint8_t(255 * terre / t); p[2] = uint8_t(255 * roche / t); p[3] = uint8_t(255 * blanc / t);
+    }
+}
+
 static void classerBiomes(Monde& m) {
   const int w = m.n + 1; const auto& s = m.D.scenario;
   for (int j = 0; j < m.n; ++j)
@@ -41,6 +58,7 @@ static void classerBiomes(Monde& m) {
       else if (c.humidite > 0.58f) c.biome = Biome::Foret;
       else c.biome = Biome::Prairie;
     }
+  calculerSplat(m);
 }
 
 void Monde::genererTerritoire() {
@@ -80,6 +98,7 @@ bool Monde::chargerHeightmap16(const uint16_t* px, int taillePx, float altMin, f
     }
   classerBiomes(*this); terrainModifie = true; ++revisionTerrain;
   for (auto& s : structures) s.y = hauteur(s.c.x, s.c.z);
+  synchroniserPhysique(true);
   emettre("{\"type\":\"terrain\",\"source\":\"heightmap16\"}");
   return true;
 }
@@ -96,7 +115,7 @@ bool Monde::terraformer(int outil, double x, double z, float rayon, float force,
   for (int j = j0; j <= j1; ++j)
     for (int i = i0; i <= i1; ++i) {
       double vx = -taille * 0.5 + i * cell, vz = -taille * 0.5 + j * cell, d = dhypot(vx - x, vz - z); if (d > rayon) continue;
-      float k = float(0.5 + 0.5 * dcos(3.14159265 * d / rayon)), &o = nv[size_t(j) * w + i], a = h[size_t(j) * w + i];
+      float f = float(1 - d / rayon), k = f * f * (3 - 2 * f), &o = nv[size_t(j) * w + i], a = h[size_t(j) * w + i];   // atténuation smoothstep (document r88, § 7)
       switch (outil) {
         case 0: o = a + force * k; break;
         case 1: o = a - force * k; break;
@@ -120,6 +139,7 @@ bool Monde::terraformer(int outil, double x, double z, float rayon, float force,
     }
   h.swap(nv); classerBiomes(*this); terrainModifie = true; ++revisionTerrain;
   for (auto& s : structures) s.y = hauteur(s.c.x, s.c.z);
+  synchroniserPhysique(true);
   emettre("{\"type\":\"terraformation\",\"outil\":" + std::to_string(outil) + ",\"volume_m3\":" + std::to_string(int(volume)) + ",\"cout\":" +
           std::to_string(int64_t(cout)) + ",\"ressources_detruites_t\":" + std::to_string(int(detruit)) + "}");
   return true;

@@ -1,7 +1,8 @@
 $input v_monde, v_color0
 #include <bgfx_shader.sh>
-uniform vec4 u_soleil, u_couleurSoleil, u_ciel, u_sol, u_brouillard, u_oeil, u_params;
+uniform vec4 u_soleil, u_couleurSoleil, u_ciel, u_sol, u_brouillard, u_oeil, u_params, u_mode;
 void main() {
+  if (u_mode.x > 0.5) { gl_FragColor = vec4(v_color0.xxx, 1.0); return; }   // FLIR : la couleur d'instance porte la température
   vec3 n = normalize(cross(dFdx(v_monde), dFdy(v_monde)));   // facettes plates
   if (dot(n, u_oeil.xyz - v_monde) < 0.0) n = -n;
   float lambert = max(dot(n, normalize(u_soleil.xyz)), 0.0);

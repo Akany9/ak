@@ -2,7 +2,9 @@
 // Toute la simulation est dans le cœur C++ (../coeur, API g1/api.h) : cet hôte est la contrepartie native de
 // web/src/main.js et ne contient, comme lui, AUCUNE règle de jeu.
 //   g1_natif [--data <dossier>] [--scenario berlin_1945.json] [--capture f.png] [--images n] [--distance m]
-//            [--largeur l] [--hauteur h] [--avance s]
+//            [--largeur l] [--hauteur h] [--avance s] [--flir] [--headless <heures>] [--editeur]
+// Modes (AppStateManager, document r88 brique 3) : --headless simule sans fenêtre ni contexte graphique et affiche
+// l'empreinte d'état ; --editeur active la sculpture du terrain au pinceau (clic gauche monter, droit creuser).
 #include <SDL3/SDL.h>
 #include <bgfx/bgfx.h>
 #include <bx/math.h>
@@ -22,6 +24,7 @@
 #include <vector>
 #include "imgui_bgfx.hpp"
 #include "rendu_monde.hpp"
+#include "sim/app_state.hpp"
 
 namespace fs = std::filesystem;
 static std::string lire(const fs::path& p) { std::ifstream f(p, std::ios::binary); std::stringstream s; s << f.rdbuf(); return s.str(); }
@@ -89,7 +92,8 @@ struct Camera {
 };
 
 int main(int argc, char** argv) {
-  std::string data, scenario = "berlin_1945.json", capture; int images = 120, W = 1600, H = 900; float distance = 3.2f, avance = 0, lacetArg = -999;
+  std::string data, scenario = "berlin_1945.json", capture; int images = 120, W = 1600, H = 900; float distance = 3.2f, avance = 0, lacetArg = -999, heuresHeadless = 1;
+  bool flir = false, contours = true; AppStateManager& app = AppStateManager::instance();
   fs::path exe = fs::absolute(argc ? argv[0] : ".");
   for (fs::path p : {exe.parent_path() / "data", exe.parent_path() / "../coeur/data", exe.parent_path() / "../../coeur/data", fs::path("coeur/data"), fs::path("../coeur/data")})
     if (data.empty() && fs::exists(p / "armes.json")) data = p.string();
@@ -99,11 +103,19 @@ int main(int argc, char** argv) {
     else if (a == "--images") images = std::atoi(suite().c_str()); else if (a == "--distance") distance = float(std::atof(suite().c_str()));
     else if (a == "--largeur") W = std::atoi(suite().c_str()); else if (a == "--hauteur") H = std::atoi(suite().c_str());
     else if (a == "--avance") avance = float(std::atof(suite().c_str())); else if (a == "--lacet") lacetArg = float(std::atof(suite().c_str()));
+    else if (a == "--flir") flir = true; else if (a == "--editeur") app.set_mode(EngineMode::Editor);
+    else if (a == "--headless") { app.set_mode(EngineMode::HeadlessSimulation); heuresHeadless = float(std::atof(suite().c_str())); }
   }
   if (scenario.find(".json") == std::string::npos) scenario += ".json";
   fs::path D(data);
   if (!g1_load(lire(D / "materiaux.json").c_str(), lire(D / "armes.json").c_str(), lire(D / "scenarios" / scenario).c_str(), lire(D / "reglages.json").c_str())) {
     std::fprintf(stderr, "cœur : %s (données : %s)\n", g1_error(), data.c_str()); return 1;
+  }
+  if (*g1_script_nom() && !g1_script(lire(D / "scripts" / g1_script_nom()).c_str(), g1_script_nom())) { std::fprintf(stderr, "script : %s\n", g1_error()); return 1; }
+  if (app.is_headless()) {   // 0 coût de rendu : ni SDL, ni bgfx, ni ImGui (serveur, intégration continue, équilibrage)
+    g1_mode(2); while (g1_etat()[1] < heuresHeadless * 3600.f) { g1_tick(); if (std::string(g1_events()).find("\"ralenti\"") != std::string::npos) g1_mode(2); }
+    std::printf("headless : %.1f h simulées, acte %d, état narratif « %s », empreinte %08x\n", g1_etat()[1] / 3600.f, int(g1_etat()[4]), g1_narratif(), g1_hash());
+    return 0;
   }
   for (int i = 0; i < int(avance * 20); ++i) { g1_tick(); g1_events(); }   // avance rapide (captures automatiques)
 
@@ -120,7 +132,7 @@ int main(int argc, char** argv) {
   init.swapChain.nwh = (void*)(uintptr_t)SDL_GetNumberProperty(pr, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
   init.type = bgfx::RendererType::OpenGL;   // comme r88 : OpenGL pour le développement sous Linux
 #endif
-  int pw, ph; SDL_GetWindowSizeInPixels(win, &pw, &ph); init.swapChain.width = uint32_t(pw); init.swapChain.height = uint32_t(ph); init.swapChain.flags = BGFX_SWAP_CHAIN_MSAA_X4; init.reset = BGFX_RESET_VSYNC;   // API bgfx récente : fenêtre = SwapChain
+  int pw, ph; SDL_GetWindowSizeInPixels(win, &pw, &ph); init.swapChain.width = uint32_t(pw); init.swapChain.height = uint32_t(ph); init.swapChain.flags = BGFX_SWAP_CHAIN_NONE; init.reset = BGFX_RESET_VSYNC;   // API bgfx récente : fenêtre = SwapChain
   bgfx::renderFrame();   // mode mono-thread (BGFX_CONFIG_MULTITHREADED=0), comme r88
   if (!bgfx::init(init)) { std::fprintf(stderr, "bgfx : initialisation impossible\n"); return 1; }
   std::printf("bgfx : %s\n", bgfx::getRendererName(bgfx::getRendererType()));
@@ -136,7 +148,7 @@ int main(int argc, char** argv) {
   const char* MODES[] = {"tactique 1:1", "exploration ×10", "stratégique 1 s = 1 h"}; const char* STATUTS[] = {"Voyageur", "Agent", "Commandant"};
   int heat = 0, modeDemande = -1, image = 0; bool fin = false, tir = false, viser = false, souris = false; float minuteur = 0; std::deque<std::string> fil;
   uint64_t avant = SDL_GetTicksNS(); const int fj = int(g1_etat()[16]);
-  struct Demande { int de, vers; std::string texte; }; std::vector<Demande> demandes;
+  struct Demande { int de, vers; std::string texte; float utilite; }; std::vector<Demande> demandes; float pinceau = 0;
 
   while (!fin) {
     SDL_Event e;
@@ -146,6 +158,13 @@ int main(int argc, char** argv) {
       if (e.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) { pw = e.window.data1; ph = e.window.data2; bgfx::SwapChain sc = init.swapChain; sc.width = uint32_t(pw); sc.height = uint32_t(ph); bgfx::reset(BGFX_RESET_VSYNC, &sc); }
       if (e.type == SDL_EVENT_MOUSE_MOTION && souris) { float s = cam.vise ? 0.0011f : 0.0022f; cam.lacet -= e.motion.xrel * s; cam.tangage = std::clamp(cam.tangage - e.motion.yrel * s, -1.2f, 1.0f); }
       if (e.type == SDL_EVENT_MOUSE_WHEEL && !io.WantCaptureMouse) cam.cible = std::clamp(cam.cible * std::exp(-e.wheel.y * 0.15f), 2.2f, 3000.f);
+      if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_F && !io.WantCaptureKeyboard) flir = !flir;
+      if (e.type == SDL_EVENT_KEY_DOWN && e.key.scancode == SDL_SCANCODE_O && !io.WantCaptureKeyboard) contours = !contours;
+      if (app.mode() == EngineMode::Editor && cam.mode() == 2 && !io.WantCaptureMouse) {   // éditeur : pinceau de terrain sous la souris
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) pinceau = e.button.button == SDL_BUTTON_LEFT ? 1.f : -1.f;
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) pinceau = 0;
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN || e.type == SDL_EVENT_MOUSE_BUTTON_UP) continue;
+      }
       if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !io.WantCaptureMouse) {
         if (!souris && cam.mode() < 2) { souris = true; SDL_SetWindowRelativeMouseMode(win, true); }
         else { if (e.button.button == SDL_BUTTON_LEFT) tir = true; if (e.button.button == SDL_BUTTON_RIGHT) viser = true; }
@@ -167,10 +186,10 @@ int main(int argc, char** argv) {
     for (size_t p = 0; (p = ev.find("\"type\":\"", p)) != std::string::npos;) {
       p += 8; size_t q = ev.find('"', p); std::string t = ev.substr(p, q - p); size_t a = ev.rfind('{', p), z = ev.find('}', q);
       if (t == "terraformation" || t == "terrain") rendu.majTerrain();
-      if (t == "llm_requis") {   // niveau 2 de l'IA : texte de repli local (un connecteur LLM peut remplacer cette ligne)
-        auto champ = [&](const char* k) { size_t s = ev.find(std::string("\"") + k + "\":", a); return s < z ? std::atoi(ev.c_str() + s + std::strlen(k) + 3) : -1; };
-        int de = champ("de"), vers = champ("vers"); std::string txt = std::string(g1_faction_nom(de)) + " propose un cessez-le-feu immédiat à " + g1_faction_nom(vers) + ".";
-        if (vers == fj) demandes.push_back({de, vers, txt}); else g1_reponse_diplomatique(de, vers, 1, txt.c_str());
+      if (t == "negociation") {   // proposition adressée au joueur (Utility AI du cœur, texte par modèles) : c'est lui qui tranche
+        auto champ = [&](const char* k) { size_t s0 = ev.find(std::string("\"") + k + "\":", a); return s0 < z ? std::atof(ev.c_str() + s0 + std::strlen(k) + 3) : -1.0; };
+        size_t tx = ev.find("\"texte\":\"", a), tf = ev.find("\",\"utilite", tx);
+        demandes.push_back({int(champ("de")), int(champ("vers")), tx < z ? ev.substr(tx + 9, tf - tx - 9) : "", float(champ("utilite"))});
       }
       if (t != "touche" && t != "impact" && t != "structure" && t != "tuiles" && t != "explosion") { fil.push_front(ev.substr(a, z - a + 1)); if (fil.size() > 8) fil.pop_back(); }
     }
@@ -183,13 +202,18 @@ int main(int argc, char** argv) {
     Eclairage L = {{sd[0] / sl, sd[1] / sl, sd[2] / sl, 0}, {1.f * ks, 0.95f * ks, 0.85f * ks, 0}, {0.42f * amb, 0.5f * amb, 0.62f * amb, 0}, {0.22f, 0.2f, 0.18f, 0},
                    {0.62f * amb, 0.68f * amb, 0.74f * amb, 0}, {heat > 0 && cam.distance > 40 ? 0.8f : 0.f, std::min(1.f, cam.distance / 300.f), cam.mode() == 2 ? 0.00012f : 0.0009f, std::min(1.f, cam.distance / 150.f)}};
     uint32_t fond = (uint32_t(L.brouillard[0] * 255) << 24) | (uint32_t(L.brouillard[1] * 255) << 16) | (uint32_t(L.brouillard[2] * 255) << 8) | 0xff;
-    bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, fond, 1.0f, 0); bgfx::setViewRect(0, 0, 0, uint16_t(pw), uint16_t(ph));
-    float view[16], proj[16]; bx::Vec3 oeil = {cam.eye[0], cam.eye[1], cam.eye[2]}, vers = {cam.eye[0] + cam.fwd[0], cam.eye[1] + cam.fwd[1], cam.eye[2] + cam.fwd[2]};
-    bx::mtxLookAt(view, oeil, vers, {0, 1, 0}, bx::Handedness::Right);
-    bx::mtxProj(proj, cam.vise && cam.distance < 8 ? 45.f : 65.f, float(pw) / float(std::max(1, ph)), cam.distance > 200 ? 2.f : 0.1f, 2000.f + cam.distance * 4,
+    (void)fond; OptionsRendu O; bx::Vec3 oeil = {cam.eye[0], cam.eye[1], cam.eye[2]}, vers = {cam.eye[0] + cam.fwd[0], cam.eye[1] + cam.fwd[1], cam.eye[2] + cam.fwd[2]};
+    bx::mtxLookAt(O.view, oeil, vers, {0, 1, 0}, bx::Handedness::Right);
+    bx::mtxProj(O.proj, cam.vise && cam.distance < 8 ? 45.f : 65.f, float(pw) / float(std::max(1, ph)), cam.distance > 200 ? 2.f : 0.1f, 2000.f + cam.distance * 4,
                 bgfx::getCaps()->homogeneousDepth, bx::Handedness::Right);
-    bgfx::setViewTransform(0, view, proj); bgfx::touch(0);
-    rendu.dessiner(0, cam.eye, L, std::max(1.f, cam.distance / 60.f), cam.mode() == 2);
+    std::memcpy(O.eye, cam.eye, sizeof O.eye); O.largeur = pw; O.hauteur = ph; O.echelleUnites = std::max(1.f, cam.distance / 60.f); O.toutesTuiles = cam.mode() == 2;
+    O.flir = flir; O.contours = contours; O.temps = float(SDL_GetTicks()) * 0.001f;
+    if (pinceau != 0) {   // éditeur : rayon souris → terrain (marche le long du rayon), pinceau gratuit (mode développement du cœur)
+      float mx, my; SDL_GetMouseState(&mx, &my); float vp[16], inv[16]; bx::mtxMul(vp, O.view, O.proj); bx::mtxInverse(inv, vp);
+      float nx = mx / float(pw) * 2 - 1, ny = 1 - my / float(ph) * 2; bx::Vec3 a0 = bx::mulH({nx, ny, 0.f}, inv), b2 = bx::mulH({nx, ny, 1.f}, inv), d = bx::normalize(bx::sub(b2, a0));
+      for (float t = 0; t < 6000; t += 2) { bx::Vec3 p = bx::mad(d, t, a0); if (p.y < rendu.hauteur(p.x, p.z)) { g1_terraformer(pinceau > 0 ? 0 : 1, p.x, p.z, 40, 0.6f, 1); break; } }
+    }
+    rendu.majTerrain(); rendu.dessiner(O, L);
 
     // ---------------------------------------------------------------- interface (HUD + commandement)
     ImGui_ImplSDL3_NewFrame(); ImGui::NewFrame();
@@ -197,7 +221,12 @@ int main(int argc, char** argv) {
     ImGui::Begin("etat", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs);
     ImGui::Text("Jour %d, %02d h %02d · %s", int(E[0] / 24) + 1, int(E[0]) % 24, int(std::fmod(E[0], 1.f) * 60), MODES[std::clamp(int(E[2]), 0, 2)]);
     ImGui::Text("Acte %d · statut %s · suspicion %.0f %%", int(E[4]), STATUTS[std::clamp(int(E[5]), 0, 2)], E[6] * 100);
-    ImGui::Text("origine flottante (%.0f, %.0f) · %d tuiles actives · %s", E[8], E[9], int(E[17]), bgfx::getRendererName(bgfx::getRendererType()));
+    ImGui::Text("origine flottante (%.0f, %.0f) · %d chunks de %.0f m actifs · %s", E[8], E[9], int(E[17]), E[36], bgfx::getRendererName(bgfx::getRendererType()));
+    const char* METEO[] = {"clair", "pluie", "brouillard", "pluie et brouillard", "neige"};
+    ImGui::Text("état narratif « %s » · météo %s (%.0f %%)", g1_narratif(), METEO[std::clamp(int(E[32]), 0, 4)], E[33] * 100);
+    ImGui::Text("SimLOD %d détaillées / %d vectorielles · bâtiments %d affichés, %d éliminés (frustum) · %d chunks dessinés",
+                int(E[34]), int(E[35]), rendu.batimentsVisibles, rendu.batimentsCulles, rendu.chunksVisibles);
+    ImGui::Text("%s%s%s", flir ? "FLIR (F) · " : "", contours ? "contours (O) · " : "", app.mode() == EngineMode::Editor ? "ÉDITEUR : clic gauche monter, droit creuser (vue carte)" : "");
     ImGui::End();
     ImGui::SetNextWindowPos({float(pw) - 12, float(ph) - 12}, 0, {1, 1}); ImGui::SetNextWindowBgAlpha(0.6f);
     ImGui::Begin("vitals", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs);
@@ -224,8 +253,9 @@ int main(int argc, char** argv) {
       }
       ImGui::EndTable();
     }
-    for (size_t k = 0; k < demandes.size(); ++k) {
-      ImGui::Separator(); ImGui::TextWrapped("%s", demandes[k].texte.c_str());
+    ImGui::Checkbox("vision thermique FLIR (F)", &flir); ImGui::SameLine(); ImGui::Checkbox("contours (O)", &contours);
+    for (size_t k = 0; k < demandes.size(); ++k) {   // négociation (Zero AI Content : texte par modèles, décision du joueur)
+      ImGui::Separator(); ImGui::TextWrapped("%s", demandes[k].texte.c_str()); ImGui::TextDisabled("utilité estimée pour vous : %.2f", demandes[k].utilite);
       if (ImGui::Button(("Accepter##" + std::to_string(k)).c_str())) { g1_reponse_diplomatique(demandes[k].de, demandes[k].vers, 1, demandes[k].texte.c_str()); demandes.erase(demandes.begin() + k); break; }
       ImGui::SameLine(); if (ImGui::Button(("Refuser##" + std::to_string(k)).c_str())) { g1_reponse_diplomatique(demandes[k].de, demandes[k].vers, 0, demandes[k].texte.c_str()); demandes.erase(demandes.begin() + k); break; }
     }

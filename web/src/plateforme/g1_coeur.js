@@ -71,6 +71,7 @@ export class Coeur {
     return { n, cellule: this.x.g1_terrain_cellule(), taille: this.x.g1_terrain_taille(), revision: this.x.g1_terrain_revision(), eau: this.x.g1_niveau_eau(),
              hauteurs: this.f32(ph, (n + 1) * (n + 1)), cellules: this.f32(pc, n * n * 4) };
   }
+  splatmap() { const n = this.x.g1_terrain_n(); return new Uint8Array(this.x.memory.buffer, this.x.g1_splatmap(), n * n * 4); }
   heatmap(type) { const n = this.x.g1_terrain_n(); return this.f32(this.x.g1_heatmap(type), n * n); }
   structures() { const n = this.x.g1_structures_count(); return { n, d: this.f32(this.x.g1_structures(), n * STRIDE.structure) }; }
   unites() { const n = this.x.g1_unites_count(); return { n, d: this.f32(this.x.g1_unites(), n * STRIDE.unite) }; }

@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
   {  // pénétration : bois traversé, brique arrêtée
     for (const char* mat : {"bois", "brique"}) {
       Monde m(d); m.unites.clear(); m.structures.clear(); int mi = 0; for (size_t i = 0; i < d.materiaux.size(); ++i) if (d.materiaux[i].nom == mat) mi = int(i);
-      Structure s; s.c.x = 0; s.c.z = 0; s.c.l = 6; s.c.p = 0.3f; s.c.h = 6; s.c.materiau = mi; s.y = m.hauteur(0, 0); s.pv = s.pvMax = 1e9f; m.structures.push_back(s);
+      Structure s; s.c.x = 0; s.c.z = 0; s.c.l = 6; s.c.p = 0.3f; s.c.h = 6; s.c.materiau = mi; s.y = m.hauteur(0, 0); s.pv = s.pvMax = 1e9f; m.structures.push_back(s); m.synchroniserPhysique(false);
       int a = d.arme("kar98k"); Projectile p{}; p.x = 0; p.y = s.y + 1.5; p.z = -20; p.vz = d.armes[a].v0; p.arme = a; p.vie = 1; p.actif = true; p.tireur = -1; p.penetration = d.armes[a].penetrationMm; p.degats = 85;
       m.projectiles.push_back(p); for (int k = 0; k < 12; ++k) m.tickProjectiles(SOUS_PAS_BALISTIQUE);
       bool traverse = m.projectiles[0].z > 1;
@@ -133,6 +133,20 @@ int main(int argc, char** argv) {
   {  // SimLOD : hors de la bulle TPS, simulation 2D ; dans la bulle, simulation 3D complète
     Monde m(d); m.tick();
     VERIFIER(m.nbMacro > 0 && m.nbDetaillees > 0, "SimLOD : %d unités détaillées dans la bulle de %.0f m, %d en simulation vectorielle", m.nbDetaillees, d.reglages.bulleTps, m.nbMacro);
+  }
+  {  // IPhysicsWorld : l'adaptateur r88 répond comme l'ancien lancer de rayon ; Jolt (si compilé) concorde avec lui
+    Monde m(d); int hits = 0, dTerr = 0, accord = 0, comp = 0; double ecartMax = 0; Rng r(7);
+    auto jolt = []() { std::string av; auto p = creerPhysique("jolt", av); return std::make_pair(std::move(p), av.empty()); }();
+    if (jolt.second) { jolt.first->set_heightfield(m.h.data(), m.n + 1, m.n + 1, float(m.cell)); std::vector<Boite> b; for (auto& s : m.structures) b.push_back(m.boiteDe(s)); jolt.first->set_boites(b); }
+    for (int k = 0; k < 400; ++k) {
+      float ox = r.sym() * 900, oz = r.sym() * 900, oy = float(m.hauteur(ox, oz)) + 1.5f + r.unif() * 30, a = r.unif() * 6.2832f, e = -0.05f - r.unif() * 0.3f;
+      float dx = std::cos(a) * std::cos(e), dy = std::sin(e), dz = std::sin(a) * std::cos(e), d1, d2; int b1, b2;
+      bool t1 = m.physique->raycast(ox, oy, oz, dx, dy, dz, 3000, d1, b1); hits += t1; dTerr += t1 && b1 < 0;
+      if (jolt.second) { bool t2 = jolt.first->raycast(ox, oy, oz, dx, dy, dz, 3000, d2, b2); if (t1 && t2) { ++comp; ecartMax = std::max(ecartMax, double(std::fabs(d1 - d2))); accord += std::fabs(d1 - d2) < 0.05f && b1 == b2; } }
+    }
+    VERIFIER(hits > 300 && dTerr > 0 && hits - dTerr > 0, "physique « %s » : %d rayons sur 400 touchent (%d terrain, %d bâtiments)", m.physique->nom(), hits, dTerr, hits - dTerr);
+    if (jolt.second) VERIFIER(accord * 100 >= comp * 97, "Jolt contre r88 : %d / %d impacts identiques à 5 cm près (écart max %.3f m)", accord, comp, ecartMax);
+    else std::printf("—      Jolt non compilé dans cette cible (option CMake G1_JOLT)\n");
   }
   {  // stratégique : 30 jours, économie finie, acte avancé
     g1_load(lire(D_ + "/materiaux.json").c_str(), lire(D_ + "/armes.json").c_str(), lire(D_ + "/scenarios/cuba_1958.json").c_str(), lire(D_ + "/reglages.json").c_str());

@@ -17,6 +17,7 @@ async function demarrer(fichier) {
   const [wasm, materiaux, armes, scenario, reglages] = await Promise.all([fetch("g1_coeur.wasm").then(r => r.arrayBuffer()),
     lire("data/materiaux.json"), lire("data/armes.json"), lire("data/scenarios/" + fichier), lire("data/reglages.json")]);
   const coeur = await Coeur.create(wasm), avert = coeur.load({ materiaux, armes, scenario, reglages });
+  if (coeur.scriptNom()) coeur.script(await lire("data/scripts/" + coeur.scriptNom()), coeur.scriptNom());   // scénario scripté en Lua (sol2)
   if (avert.length) console.warn("avertissements du cœur", avert);
   window.coeur = coeur;   // console de mise au point
   document.querySelector("#accueil").remove();
@@ -32,6 +33,24 @@ async function demarrer(fichier) {
   soleil.shadow.bias = -0.0005; scene.add(hemi, soleil, soleil.target);
   const redim = () => { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
   addEventListener("resize", redim); redim();
+
+  // vision thermique FLIR (document r88, § 4) : la scène est rendue en températures dans une cible hors écran, puis
+  // fs_thermal (palette Ironbow, bruit de capteur animé, vignettage) — même shader que natif/shaders/fs_thermal.sc
+  const cibleFlir = new THREE.WebGLRenderTarget(1, 1, { stencilBuffer: true });
+  const bruit = new THREE.DataTexture(Uint8Array.from({ length: 64 * 64 }, (_, i) => (Math.imul(i * 2654435761, 97) >>> 24) & 255), 64, 64, THREE.RedFormat);
+  bruit.wrapS = bruit.wrapT = THREE.RepeatWrapping; bruit.magFilter = THREE.LinearFilter; bruit.needsUpdate = true;
+  const quadFlir = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ depthTest: false, depthWrite: false,
+    uniforms: { s_gBufferThermal: { value: cibleFlir.texture }, s_noiseTex: { value: bruit }, u_thermalTimeParams: { value: new THREE.Vector4(0, 3, 0, 0) } },
+    vertexShader: "varying vec2 v_texcoord0; void main() { v_texcoord0 = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader: `varying vec2 v_texcoord0; uniform sampler2D s_gBufferThermal, s_noiseTex; uniform vec4 u_thermalTimeParams;
+      vec3 ironbow(float t) { t = clamp(t, 0.0, 1.0); vec3 c; c.r = smoothstep(0.0, 0.5, t); c.g = smoothstep(0.3, 0.8, t); c.b = smoothstep(0.7, 1.0, t) + (1.0 - smoothstep(0.0, 0.3, t)) * 0.2; return c; }
+      void main() {
+        float raw_temp = texture2D(s_gBufferThermal, v_texcoord0).r;
+        float noise = texture2D(s_noiseTex, v_texcoord0 * u_thermalTimeParams.y + vec2(u_thermalTimeParams.x * 0.05)).r * 0.08 - 0.04;
+        vec2 uv = v_texcoord0 * (1.0 - v_texcoord0.yx); float vig = pow(uv.x * uv.y * 15.0, 0.25);
+        gl_FragColor = vec4(ironbow(clamp(raw_temp + noise, 0.0, 1.0)) * vig, 1.0);
+      }` }));
+  const sceneFlir = new THREE.Scene(); sceneFlir.add(quadFlir); const cameraFlir = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   const F = coeur.factions(), couleurs = Array.from({ length: coeur.nf }, (_, i) => F[i * STRIDE.faction + 22] | 0);
   const terrain = new Terrain(scene, coeur), entites = new Entites(scene, coeur, couleurs), arbres = vegetation(scene, coeur);
@@ -49,7 +68,7 @@ async function demarrer(fichier) {
 
   // ---------------------------------------------------------------- entrées
   const touches = new Set(); let tir = false, vise = false, outil = -1;
-  addEventListener("keydown", (e) => { touches.add(e.code); if (e.code === "KeyM") cam.cible = cam.strategique ? 3.2 : 1200; if (e.code === "KeyT") { outil = outil < 0 ? 0 : -1; hud.fil(outil < 0 ? "Terraformation désactivée" : "Terraformation : cliquer sur la carte (outil choisi dans le panneau)"); } });
+  addEventListener("keydown", (e) => { touches.add(e.code); if (e.code === "KeyF") params.flir = !params.flir; if (e.code === "KeyO") params.contours = !params.contours; if (e.code === "KeyM") cam.cible = cam.strategique ? 3.2 : 1200; if (e.code === "KeyT") { outil = outil < 0 ? 0 : -1; hud.fil(outil < 0 ? "Terraformation désactivée" : "Terraformation : cliquer sur la carte (outil choisi dans le panneau)"); } });
   addEventListener("keyup", (e) => touches.delete(e.code));
   canvas.addEventListener("mousedown", (e) => {
     if (cam.strategique && outil >= 0) { terraformer(e); return; }
@@ -67,7 +86,7 @@ async function demarrer(fichier) {
   }
 
   // ---------------------------------------------------------------- panneaux (lil-gui ; équivalent Dear ImGui côté natif)
-  const fj = E0[16] | 0, params = { chaleur: -1, opaciteChaleur: 0.8, lignes: true, brouillardInfo: true, outil: 0, rayon: 40, force: 2, dev: false, llmUrl: "", llmModele: "llama3" };
+  const fj = E0[16] | 0, params = { chaleur: -1, opaciteChaleur: 0.8, lignes: true, brouillardInfo: true, outil: 0, rayon: 40, force: 2, dev: false, flir: false, contours: true };
   const gui = new GUI({ title: "Game 1 — commandement" });
   const fCarte = gui.addFolder("Carte stratégique");
   fCarte.add(params, "chaleur", Object.fromEntries([["aucune", -1], ...HEATMAPS.map((h, i) => [h, i])])).name("carte de chaleur");
@@ -80,8 +99,8 @@ async function demarrer(fichier) {
   fTer.add(params, "outil", { monter: 0, creuser: 1, aplanir: 2, lisser: 3 }); fTer.add(params, "rayon", 8, 200, 1); fTer.add(params, "force", 0.2, 10, 0.1);
   fTer.add(params, "dev").name("mode développement (gratuit)");
   fTer.add({ mnt: () => importerMNT() }, "mnt").name("importer un MNT 16 bits (.raw)…");
-  const fDip = gui.addFolder("Diplomatie — IA niveau 2 (LLM local)");
-  fDip.add(params, "llmUrl").name("URL (ex. Ollama)"); fDip.add(params, "llmModele").name("modèle");
+  const fVue = gui.addFolder("Vue tactique"); fVue.add(params, "flir").name("vision thermique FLIR (F)").listen(); fVue.add(params, "contours").name("contours d'escouade (O)").listen();
+  const fDip = gui.addFolder("Diplomatie (Utility AI — aucun modèle génératif)");
   const tab = document.createElement("div"); tab.style.cssText = "padding:6px 8px;font:11px ui-monospace,monospace;color:#cfd6dc"; fDip.$children.appendChild(tab);
   const fTemps = gui.addFolder("Temps"); fTemps.add({ t: () => cam.cible = 3.2 }, "t").name("tactique (1:1)"); fTemps.add({ t: () => cam.cible = 200 }, "t").name("exploration (×10)"); fTemps.add({ t: () => cam.cible = 1200 }, "t").name("carte stratégique (1 s = 1 h)");
   fTer.close(); fDip.close(); fBud.close();
@@ -93,19 +112,17 @@ async function demarrer(fichier) {
     inp.click();
   }
 
-  // niveau 2 de l'IA diplomatique : rédaction par un LLM local si configuré, sinon modèle de texte de repli
-  async function diplomatie(ev) {
-    const c = ev.contexte, de = coeur.factionsNoms[ev.de], vers = coeur.factionsNoms[ev.vers];
-    let texte = `${de} propose à ${vers} un cessez-le-feu immédiat sur l'ensemble du secteur, l'échange des blessés et l'ouverture d'un couloir de ravitaillement. (rapport de forces ${c.rapport_forces.toFixed(2)}, moral ${c.moral.toFixed(2)})`;
-    if (params.llmUrl) {
-      try {
-        const r = await fetch(params.llmUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: params.llmModele, stream: false,
-          prompt: `Tu es le dirigeant de « ${de} » (doctrine ${c.doctrine}). Rédige en 3 phrases une demande d'armistice adressée à « ${vers} ». Contexte chiffré : ${JSON.stringify(c)}. Pas de propos haineux.` }) });
-        texte = (await r.json()).response?.trim() || texte;
-      } catch (e) { console.warn("LLM local injoignable, texte de repli", e); }
+  // négociation (document r88, « Zero AI Content ») : le cœur décide par Utility AI et rédige par modèles de texte ;
+  // seule une proposition adressée au joueur attend sa décision
+  const negociations = document.createElement("div"); negociations.style.cssText = "padding:6px 8px;font:12px system-ui"; fDip.$children.appendChild(negociations);
+  function negociation(ev) {
+    const d = document.createElement("div"); d.style.margin = "6px 0";
+    d.innerHTML = `<div>${ev.texte}</div><small style="color:#9aa4ad">utilité estimée pour vous : ${ev.utilite.toFixed(2)}</small><br>`;
+    for (const [lib, ok] of [["Accepter", true], ["Refuser", false]]) {
+      const b = document.createElement("button"); b.textContent = lib; b.style.marginRight = "6px";
+      b.onclick = () => { coeur.reponseDiplomatique(ev.de, ev.vers, ok, ev.texte); d.remove(); }; d.appendChild(b);
     }
-    const accepter = ev.vers === fj ? confirm(`${texte}\n\nAccepter l'armistice ?`) : c.relation > -90;
-    coeur.reponseDiplomatique(ev.de, ev.vers, accepter, texte);
+    negociations.appendChild(d); fDip.open(); hud.fil("Proposition d'armistice : voir le panneau Diplomatie", "#f2c230");
   }
 
   // ---------------------------------------------------------------- événements du cœur → effets et fil
@@ -117,13 +134,14 @@ async function demarrer(fichier) {
     acte: (e) => `— Acte ${["", "I", "II", "III", "IV", "V"][e.acte]} —`, statut: () => "Vous êtes désormais Commandant : commande stratégique débloquée", identite_revelee: () => "Identité révélée !",
     enrayement: () => "Arme enrayée — R pour dégager", ralenti: (e) => `Retour au temps réel : ${e.raison}`, refus: (e) => `Refusé : ${e.raison}`, traite: (e) => `Traité ${e.accord ? "signé" : "rejeté"} : ${e.texte}`,
     terraformation: (e) => `Terrassement ${e.volume_m3} m³, coût ${e.cout.toLocaleString("fr")}, ${e.ressources_detruites_t} t de ressources détruites`, renforts: (e) => `Renforts pour ${coeur.factionsNoms[e.faction]}`,
-    chronologie: (e) => e.texte, mort: (e) => e.unite === (coeur.etat()[7] | 0) ? "Vous êtes à terre." : null };
+    chronologie: (e) => e.texte, script: (e) => e.texte, narratif: (e) => `Récit : ${e.de} → ${e.vers}`, erreur_script: (e) => `Erreur de script (${e.ou}) : ${e.message}`,
+    meteo: (e) => `Météo : ${{ clair: "clair", pluie: "pluie", brouillard: "brouillard", rain_fog: "pluie et brouillard", neige: "neige" }[e.meteo] ?? e.meteo}`, mort: (e) => e.unite === (coeur.etat()[7] | 0) ? "Vous êtes à terre." : null };
   function evenements() {
     for (const e of coeur.events()) {
       if (e.type === "explosion") entites.explosion(e.x, e.y, e.z, e.r);
       if (e.type === "origine") { origine = { x: coeur.etat()[8], z: coeur.etat()[9] }; terrain.maj(origine); entites.majRoutes(); entites.draperRoutes(hauteur); entites.lisse.clear(); }
       if (e.type === "terraformation" || e.type === "terrain") { terrain.maj(origine); H = coeur.terrain().hauteurs.slice(); hud.majFond(); entites.signature = ""; entites.draperRoutes(hauteur); }
-      if (e.type === "llm_requis") diplomatie(e);
+      if (e.type === "negociation") negociation(e);
       const f = NOMS[e.type]?.(e); if (f) hud.fil(f, ["crime_de_guerre", "guerre", "identite_revelee", "insurrection"].includes(e.type) ? "#e2463b" : undefined);
     }
   }
@@ -140,10 +158,11 @@ async function demarrer(fichier) {
     coeur.input(tactique ? k("KeyW") - k("KeyS") : 0, tactique ? k("KeyD") - k("KeyA") : 0, vue.lacet, vue.tangage, camera.position,
       (k("ShiftLeft") && BOUTONS.sprint) | (k("KeyC") && BOUTONS.accroupi) | (tir && cam.verrouille && BOUTONS.tir) | (vise && BOUTONS.visee) | (k("KeyR") && BOUTONS.recharger));
     coeur.step(dt); evenements();
-    entites.majUnites(dt, j, Math.max(1, cam.distance / 60)); entites.majProjectiles(); entites.majConvois(); entites.majStructures(); entites.majEffets(dt);
+    entites.majUnites(dt, j, Math.max(1, cam.distance / 60), { flir: params.flir, contours: params.contours, terrain, origine });
+    entites.majProjectiles(); entites.majConvois(params.flir); entites.majStructures(params.flir); entites.majEffets(dt);
     arbres.uniformes.temps.value = now / 1000; arbres.maillage.position.set(-origine.x, 0, -origine.z);
     if ((minuteur -= dt) <= 0) {   // à 4 Hz : streaming, cartes de chaleur, brouillard, tableau diplomatique
-      minuteur = 0.25; terrain.toutVisible = cam.strategique; terrain.streaming(coeur.tuiles(), origine);
+      minuteur = 0.25; terrain.toutVisible = cam.strategique; terrain.streaming(pl, origine);
       if (params.chaleur >= 0 && cam.distance > 40) terrain.chaleur(coeur.heatmap(params.chaleur), params.opaciteChaleur); else terrain.materiau.uniforms.uParams.value.x = 0;
       terrain.incertitude(coeur.heatmap(6));
       const R = coeur.relations(), Fa = coeur.factions(); let html = "";
@@ -161,15 +180,24 @@ async function demarrer(fichier) {
     hemi.intensity = nuit + (1 - nuit) * jourK; u.uSoleil.value.copy(dir); u.uCouleurSoleil.value.setRGB(1, 0.95, 0.85).multiplyScalar(Math.max(0.03, el) * 1.15);
     u.uCiel.value.setRGB(0.42, 0.5, 0.62).multiplyScalar(nuit + (1 - nuit) * jourK); ciel.setRGB(0.62, 0.68, 0.74).multiplyScalar(nuit + (1 - nuit) * jourK); u.uBrouillard.value.copy(ciel);
     hud.maj(vue.lacet, cam.strategique);
-    renderer.render(scene, camera);
+    u.uMode.value.x = params.flir ? 1 : 0;
+    if (params.flir) {   // passe thermique : fond froid, pas de brouillard, eau froide, végétation tiède, puis post-traitement
+      const fond = scene.background, brume = scene.fog; scene.background = new THREE.Color(0.04, 0.04, 0.04); scene.fog = null;
+      if (terrain.eauMesh) terrain.eauMesh.visible = false; arbres.maillage.visible = false; entites.marqueur.visible = entites.routes.visible = false;
+      const taille = renderer.getDrawingBufferSize(new THREE.Vector2()); if (cibleFlir.width !== taille.x || cibleFlir.height !== taille.y) cibleFlir.setSize(taille.x, taille.y);
+      renderer.setRenderTarget(cibleFlir); renderer.render(scene, camera); renderer.setRenderTarget(null);
+      quadFlir.material.uniforms.u_thermalTimeParams.value.x = now / 1000; renderer.render(sceneFlir, cameraFlir);
+      scene.background = fond; scene.fog = brume; if (terrain.eauMesh) terrain.eauMesh.visible = true; arbres.maillage.visible = true; entites.marqueur.visible = entites.routes.visible = true;
+    } else renderer.render(scene, camera);
   });
 }
 
+function erreur(e) { console.error(e); const c = document.querySelector("#chargement"); if (c) c.textContent = "Erreur : " + e.message; else alert("Erreur : " + e.message); }
 const boite = document.querySelector("#scenarios");
 const voulu = new URLSearchParams(location.search).get("scenario");
 for (const [f, nom, desc] of SCENARIOS) {
   const b = document.createElement("button"); b.innerHTML = `<b>${nom}</b><br><small style="color:#9aa4ad">${desc}</small>`;
-  b.onclick = () => demarrer(f).catch(e => { document.querySelector("#chargement").textContent = "Erreur : " + e.message; console.error(e); });
+  b.onclick = () => demarrer(f).catch(erreur);
   boite.appendChild(b);
 }
-if (voulu) demarrer(voulu.endsWith(".json") ? voulu : voulu + ".json").catch(e => { document.querySelector("#chargement").textContent = "Erreur : " + e.message; console.error(e); });
+if (voulu) demarrer(voulu.endsWith(".json") ? voulu : voulu + ".json").catch(erreur);

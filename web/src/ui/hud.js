@@ -1,6 +1,6 @@
 // HUD tactique minimaliste (inspiration Crysis, § 7) : mini-carte topographique ronde orientée avec boussole, état
 // d'alerte discret, santé / munitions épurés, jauge de suspicion de l'Agent, fil des événements. Lecture seule.
-import { STATUTS, ROLES } from "../plateforme/g1_coeur.js";
+import { STATUTS, ROLES, STRIDE } from "../plateforme/g1_coeur.js";
 const $ = (s) => document.querySelector(s);
 const MODES = ["tactique 1:1", "exploration ×10", "stratégique 1 s = 1 h"], ACTES = ["", "I · Arrivée", "II · Infiltration", "III · Escalade", "IV · Gouvernance", "V · Dénouement"];
 
@@ -26,9 +26,9 @@ export class Hud {
     const f = $("#fil"); f.prepend(d); while (f.children.length > 9) f.lastChild.remove();
   }
   maj(lacetCam, carteVisible) {
-    const E = this.coeur.etat(), j = E[7] | 0, U = this.coeur.unites().d, S = 16, o = j * S, x = U[o], z = U[o + 2], ox = E[8], oz = E[9];
+    const E = this.coeur.etat(), j = E[7] | 0, U = this.coeur.unites().d, S = STRIDE.unite, o = j * S, x = U[o], z = U[o + 2], ox = E[8], oz = E[9];
     const h = Math.floor(E[0]) % 24, m = Math.floor((E[0] % 1) * 60), jour = Math.floor(E[0] / 24) + 1;
-    $("#etat").innerHTML = `<b>Jour ${jour}, ${String(h).padStart(2, "0")} h ${String(m).padStart(2, "0")}</b> · ${MODES[E[2] | 0]}<br>Acte <b>${ACTES[E[4] | 0]}</b> · statut <b>${STATUTS[E[5] | 0]}</b><br>origine flottante (${ox.toFixed(0)}, ${oz.toFixed(0)}) · ${E[17] | 0} tuiles actives`;
+    $("#etat").innerHTML = `<b>Jour ${jour}, ${String(h).padStart(2, "0")} h ${String(m).padStart(2, "0")}</b> · ${MODES[E[2] | 0]}<br>Acte <b>${ACTES[E[4] | 0]}</b> · statut <b>${STATUTS[E[5] | 0]}</b><br>origine flottante (${ox.toFixed(0)}, ${oz.toFixed(0)}) · ${E[17] | 0} chunks de ${E[36] | 0} m<br>récit « ${this.coeur.narratif()} » · SimLOD ${E[34] | 0} détaillées / ${E[35] | 0} vectorielles`;
     const pv = Math.max(0, E[14]), arme = U[o + 9] | 0;
     $("#vitals").innerHTML = `<div class="grand">${E[10] | 0}<span style="font-size:14px;color:#9aa4ad"> / ${E[11] | 0}</span></div>${E[13] ? '<span style="color:#e2463b">ENRAYÉ — R</span>' : E[12] > 0 ? "rechargement…" : `usure ${(E[15] * 100).toFixed(1)} %`}
       <div class="jauge"><i style="width:${pv}%;background:${pv < 35 ? "#e2463b" : "#3fd46a"}"></i></div>${U[o + 11] > 0.3 ? "jambe touchée · " : ""}${U[o + 12] > 0.3 ? "bras touché" : ""}`;
@@ -44,7 +44,7 @@ export class Hud {
     c.drawImage(this.fond, -t.taille / 2 - (x + ox), -t.taille / 2 - (z + oz), t.taille, t.taille);
     c.globalAlpha = 1; const St = this.coeur.structures();
     for (let i = 0; i < St.n; i++) {
-      const q = i * 12, r = St.d[q + 8]; if (Math.abs(St.d[q] - x) > R * 1.5 || Math.abs(St.d[q + 2] - z) > R * 1.5) continue;
+      const q = i * STRIDE.structure, r = St.d[q + 8]; if (Math.abs(St.d[q] - x) > R * 1.5 || Math.abs(St.d[q + 2] - z) > R * 1.5) continue;
       c.fillStyle = St.d[q + 7] === 2 ? "#3a3532" : (r === 5 || r === 4) ? this.css(St.d[q + 10]) : "#d8d0c4";
       c.save(); c.translate(St.d[q] - x, St.d[q + 2] - z); c.rotate(-St.d[q + 6]); c.fillRect(-St.d[q + 3] / 2, -St.d[q + 5] / 2, St.d[q + 3], St.d[q + 5]); c.restore();
     }

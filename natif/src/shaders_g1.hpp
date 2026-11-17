@@ -19,6 +19,11 @@
 #include "glsl/fs_couleur.sc.bin.h"
 #include "glsl/vs_imgui.sc.bin.h"
 #include "glsl/fs_imgui.sc.bin.h"
+#include "glsl/vs_outline.sc.bin.h"
+#include "glsl/fs_outline.sc.bin.h"
+#include "glsl/vs_ecran.sc.bin.h"
+#include "glsl/fs_thermal.sc.bin.h"
+#include "glsl/fs_copie.sc.bin.h"
 #endif
 #if BGFX_PLATFORM_SUPPORTS_ESSL
 #include "essl/vs_terrain.sc.bin.h"
@@ -29,6 +34,11 @@
 #include "essl/fs_couleur.sc.bin.h"
 #include "essl/vs_imgui.sc.bin.h"
 #include "essl/fs_imgui.sc.bin.h"
+#include "essl/vs_outline.sc.bin.h"
+#include "essl/fs_outline.sc.bin.h"
+#include "essl/vs_ecran.sc.bin.h"
+#include "essl/fs_thermal.sc.bin.h"
+#include "essl/fs_copie.sc.bin.h"
 #endif
 #if BGFX_PLATFORM_SUPPORTS_SPIRV
 #include "spirv/vs_terrain.sc.bin.h"
@@ -39,6 +49,11 @@
 #include "spirv/fs_couleur.sc.bin.h"
 #include "spirv/vs_imgui.sc.bin.h"
 #include "spirv/fs_imgui.sc.bin.h"
+#include "spirv/vs_outline.sc.bin.h"
+#include "spirv/fs_outline.sc.bin.h"
+#include "spirv/vs_ecran.sc.bin.h"
+#include "spirv/fs_thermal.sc.bin.h"
+#include "spirv/fs_copie.sc.bin.h"
 #endif
 #if BGFX_PLATFORM_SUPPORTS_DXBC
 #include "dxbc/vs_terrain.sc.bin.h"
@@ -49,6 +64,11 @@
 #include "dxbc/fs_couleur.sc.bin.h"
 #include "dxbc/vs_imgui.sc.bin.h"
 #include "dxbc/fs_imgui.sc.bin.h"
+#include "dxbc/vs_outline.sc.bin.h"
+#include "dxbc/fs_outline.sc.bin.h"
+#include "dxbc/vs_ecran.sc.bin.h"
+#include "dxbc/fs_thermal.sc.bin.h"
+#include "dxbc/fs_copie.sc.bin.h"
 #endif
 #if BGFX_PLATFORM_SUPPORTS_DXIL
 #include "dxil/vs_terrain.sc.bin.h"
@@ -59,6 +79,11 @@
 #include "dxil/fs_couleur.sc.bin.h"
 #include "dxil/vs_imgui.sc.bin.h"
 #include "dxil/fs_imgui.sc.bin.h"
+#include "dxil/vs_outline.sc.bin.h"
+#include "dxil/fs_outline.sc.bin.h"
+#include "dxil/vs_ecran.sc.bin.h"
+#include "dxil/fs_thermal.sc.bin.h"
+#include "dxil/fs_copie.sc.bin.h"
 #endif
 #if BGFX_PLATFORM_SUPPORTS_METAL
 #include "metal/vs_terrain.sc.bin.h"
@@ -69,12 +94,18 @@
 #include "metal/fs_couleur.sc.bin.h"
 #include "metal/vs_imgui.sc.bin.h"
 #include "metal/fs_imgui.sc.bin.h"
+#include "metal/vs_outline.sc.bin.h"
+#include "metal/fs_outline.sc.bin.h"
+#include "metal/vs_ecran.sc.bin.h"
+#include "metal/fs_thermal.sc.bin.h"
+#include "metal/fs_copie.sc.bin.h"
 #endif
 
 namespace g1shaders {
 static const bgfx::EmbeddedShader liste[] = {
   BGFX_EMBEDDED_SHADER(vs_terrain), BGFX_EMBEDDED_SHADER(fs_terrain), BGFX_EMBEDDED_SHADER(vs_instance), BGFX_EMBEDDED_SHADER(fs_instance),
   BGFX_EMBEDDED_SHADER(vs_couleur), BGFX_EMBEDDED_SHADER(fs_couleur), BGFX_EMBEDDED_SHADER(vs_imgui), BGFX_EMBEDDED_SHADER(fs_imgui),
+  BGFX_EMBEDDED_SHADER(vs_outline), BGFX_EMBEDDED_SHADER(fs_outline), BGFX_EMBEDDED_SHADER(vs_ecran), BGFX_EMBEDDED_SHADER(fs_thermal), BGFX_EMBEDDED_SHADER(fs_copie),
   BGFX_EMBEDDED_SHADER_END()};
 inline bgfx::ProgramHandle programme(const char* vs, const char* fs) {
   bgfx::RendererType::Enum t = bgfx::getRendererType();

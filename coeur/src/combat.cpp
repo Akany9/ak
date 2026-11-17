@@ -41,25 +41,9 @@ static bool rayonOBB(const Structure& s, double ox, double oy, double oz, double
 bool Monde::lancer(double ox, double oy, double oz, double dx, double dy, double dz, double maxT, int ignorer, Touche& res) const {
   double L = std::sqrt(dx * dx + dy * dy + dz * dz); if (L < 1e-9) return false; dx /= L; dy /= L; dz /= L;
   double best = maxT; bool touche = false; res = Touche{};
-  // terrain : marche à pas d'une demi-cellule, puis dichotomie
-  double pas = cell * 0.5, prev = 0; if (oy < hauteur(ox, oz)) { res.t = 0; res.terrain = true; res.x = ox; res.y = oy; res.z = oz; return true; }
-  for (double t = pas; t <= best + pas; t += pas) {
-    double tt = std::min(t, best), x = ox + dx * tt, z = oz + dz * tt, y = oy + dy * tt;
-    if (y < hauteur(x, z)) {
-      double a = prev, b = tt; for (int k = 0; k < 20; ++k) { double m = (a + b) * 0.5; if (oy + dy * m < hauteur(ox + dx * m, oz + dz * m)) b = m; else a = m; }
-      best = b; touche = true; res.terrain = true; break;
-    }
-    prev = tt; if (tt >= best) break;
-  }
-  for (size_t i = 0; i < structures.size(); ++i) {
-    const Structure& s = structures[i]; double r = dhypot(s.c.l, s.c.p) * 0.5 + 1;
-    double cx = s.c.x - ox, cz = s.c.z - oz, hz = std::sqrt(dx * dx + dz * dz);
-    if (hz > 1e-3) {   // rejet grossier dans le plan horizontal (distance le long du rayon, puis distance latérale)
-      double proj = (cx * dx + cz * dz) / hz; if (proj < -r || proj > best * hz + r) continue;
-      if (std::fabs(cx * dz - cz * dx) / hz > r) continue;
-    } else if (dhypot(cx, cz) > r) continue;
-    double t, sortie; if (rayonOBB(s, ox, oy, oz, dx, dy, dz, t, sortie) && t < best) { best = t; touche = true; res = Touche{}; res.structure = int(i); }
-  }
+  // terrain et bâtiments : délégués à l'adaptateur physique (IPhysicsWorld : r88 par défaut, Jolt, Havok)
+  { float d; int bt; if (physique && physique->raycast(float(ox), float(oy), float(oz), float(dx), float(dy), float(dz), float(best), d, bt)) {
+      best = d; touche = true; res = Touche{}; if (bt >= 0) res.structure = bt; else res.terrain = true; } }
   for (size_t i = 0; i < unites.size(); ++i) {   // capsule verticale ≈ cylindre (rayon 0,35 m)
     const Unite& u = unites[i]; if (int(i) == ignorer || !vivant(u)) continue;
     double ux = u.x - ox, uz = u.z - oz, a = dx * dx + dz * dz; if (a < 1e-12) continue;
@@ -85,10 +69,11 @@ void Monde::degatsStructure(int si, float degats, int faction, double, double) {
   if (s.etat == 0 && s.pv < s.pvMax * 0.6f) { s.etat = 1; emettre("{\"type\":\"structure\",\"id\":" + std::to_string(si) + ",\"etat\":1}"); }
   if (s.pv > 0) return;
   s.etat = 2; s.pv = 0; s.chaleur = 1;   // bascule vers le maillage pré-fracturé ; incendie (signature thermique)
+  if (physique) physique->maj_boite(si, boiteDe(s));
   emettre("{\"type\":\"structure\",\"id\":" + std::to_string(si) + ",\"etat\":2,\"role\":" + std::to_string(int(s.c.role)) + ",\"par\":" + std::to_string(faction) + "}");
   for (double x = s.c.x - s.c.l * 0.5; x <= s.c.x + s.c.l * 0.5; x += cell)   // valeur foncière et capacité effondrées
     for (double z = s.c.z - s.c.p * 0.5; z <= s.c.z + s.c.p * 0.5; z += cell) {
-      int ci = celluleIndex(x, z); if (ci >= 0) { cellules[ci].usure = std::min(1.f, cellules[ci].usure + 0.5f); cellules[ci].densite *= 0.5f; }
+      int ci = celluleIndex(x, z); if (ci >= 0) { cellules[ci].usure = std::min(1.f, cellules[ci].usure + 0.5f); cellules[ci].densite *= 0.5f; uint8_t* p = &splat[size_t(ci) * 4]; p[1] = uint8_t(std::min(255, p[1] + 128)); }
     }
   if (s.c.role == Role::Pont && s.arete >= 0) {
     for (auto& e : aretes) if (e.pont == si) e.coupee = true; emettre("{\"type\":\"pont_coupe\",\"structure\":" + std::to_string(si) + "}"); ralentir("pont détruit");

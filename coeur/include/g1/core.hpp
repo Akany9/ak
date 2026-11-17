@@ -71,7 +71,7 @@ struct Reglages {   // valeurs DÉCLARÉES (absentes du document), chacune justi
   float suppressionSeuil = 0.6f, captureRayon = 25, captureTemps = 10, ravitaillementRayon = 15;
   float convoiVitesse = 12, convoiCharge = 400, inflationInertie = 0.92f, fmiSeuil = -2e5f, fmiPret = 1e6f;
   float suspicionMontee = 0.08f, suspicionDescente = 0.03f, sanctionsDuree = 720;
-  float bulleTps = 350, chunk = 64, rayonAction = 900;   // SimLOD et streaming (document d'architecture r88, § 2)
+  float bulleTps = 350, chunk = 64, rayonAction = 900; std::string physique = "r88";   // SimLOD et streaming (document d'architecture r88, § 2)
 };
 
 // ------------------------------------------------------------------------------------------------ état (temps réel)

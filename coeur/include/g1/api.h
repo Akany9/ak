@@ -52,6 +52,7 @@ G1_API float g1_terrain_taille(void);
 G1_API float g1_niveau_eau(void);            /* altitude de l'eau (m), −1 : pas d'eau */
 G1_API int g1_terrain_revision(void);          /* change à chaque modification du relief */
 G1_API const float* g1_terrain_hauteurs(void);
+G1_API const unsigned char* g1_splatmap(void);   /* n² × 4 octets : poids herbe, terre, roche, neige (somme ≈ 255) */
 G1_API const float* g1_cellules(void);         /* n² × 4 : biome, zone, propriétaire, ressource */
 G1_API const float* g1_heatmap(int type);      /* n² valeurs 0..1 : 0 PIB, 1 chômage, 2 pollution, 3 densité, 4 ressources, 5 contrôle, 6 incertitude */
 

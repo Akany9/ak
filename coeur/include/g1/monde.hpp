@@ -8,6 +8,7 @@
 #include "maths.hpp"
 #include "rng.hpp"
 #include "script.hpp"
+#include "physique.hpp"
 #include <memory>
 
 namespace g1 {
@@ -50,6 +51,7 @@ class Monde {
   int acte = 1; Statut statut; float suspicion = 0; int joueur = -1;
   double origineX = 0, origineZ = 0;            // origine flottante (monde = local + origine)
   int n = 0; double cell = 8, taille = 2048; std::vector<float> h; std::vector<Cellule> cellules;   // (n+1)² hauteurs, n² cellules
+  std::vector<uint8_t> splat;                   // splatmap RGBA8 par cellule (herbe, terre, roche, neige)
   std::vector<float> connaissance;              // brouillard : âge (h) de la dernière information confirmée, par cellule
   std::vector<Structure> structures; std::vector<Unite> unites; std::vector<Projectile> projectiles; std::vector<Convoi> convois;
   std::vector<Noeud> noeuds; std::vector<Arete> aretes; std::vector<Faction> factions;
@@ -58,6 +60,7 @@ class Monde {
   std::vector<int> tuilesActives; bool terrainModifie = true; int revisionTerrain = 0;
   size_t prochainEvenement = 0;
   std::string journal;   // événements JSON en attente
+  std::unique_ptr<IPhysicsWorld> physique; void synchroniserPhysique(bool terrain); Boite boiteDe(const Structure& s) const;
   std::unique_ptr<Script> script; std::vector<std::pair<std::string, std::string>> aDiffuser; bool diffusion = false;
   std::string narratif = "arrivee"; int meteo = 0; float meteoIntensite = 0; int nbDetaillees = 0, nbMacro = 0;
 
@@ -96,4 +99,5 @@ class Monde {
 
 float utiliteArmistice(const Monde& m, int a, int b);   // diplomatie.cpp : Utility AI (vue du destinataire b)
 
+void calculerSplat(Monde& m);                           // territoire.cpp : splatmap 4 couches
 }  // namespace g1

@@ -16,7 +16,9 @@ Monde::Monde(const Donnees& d) : D(d), rng(d.scenario.graine) {
   }
   const size_t N = factions.size(); relations.assign(N * N, 0.f); guerre.assign(N * N, 0);
   for (auto& r : s.relations) { relations[r.a * N + r.b] = relations[r.b * N + r.a] = r.valeur; guerre[r.a * N + r.b] = guerre[r.b * N + r.a] = r.guerre; }
-  genererTerritoire(); genererVille(); construireGraphe(); services();
+  genererTerritoire(); genererVille(); calculerSplat(*this); construireGraphe(); services();
+  { std::string av; physique = creerPhysique(D.reglages.physique, av); if (!av.empty()) emettre("{\"type\":\"avertissement\",\"texte\":\"" + av + "\"}"); }
+  synchroniserPhysique(true);
   for (int k = 0; k < n * n; ++k) {   // population adulte par strate, selon la densité du territoire possédé
     const Cellule& c = cellules[k]; if (c.proprio < 0) continue; Faction& f = factions[c.proprio]; float pop = c.densite * float(cell * cell) * 0.05f;
     const float classe[3] = {0.62f, 0.3f, 0.08f}; float ori[4] = {0.3f, 0.25f, 0.3f, 0.15f};
@@ -48,6 +50,17 @@ void Monde::emettre(const std::string& j) {
   }
 }
 Monde::~Monde() = default;
+Boite Monde::boiteDe(const Structure& s) const {   // même volume que l'ancien test OBB : de y − 1 à y + h (+ 1 m), gravats à 30 %
+  float h = (s.etat == 2 ? s.c.h * 0.3f + 1.f : s.c.h + 1.f) + 1.f; Boite b;
+  b.cx = float(s.c.x); b.cz = float(s.c.z); b.cy = float(s.y - 1.0) + h * 0.5f; b.hx = s.c.l * 0.5f; b.hy = h * 0.5f; b.hz = s.c.p * 0.5f; b.lacet = s.c.lacet;
+  return b;
+}
+void Monde::synchroniserPhysique(bool terrain) {
+  if (!physique) return;
+  if (terrain) physique->set_heightfield(h.data(), uint32_t(n + 1), uint32_t(n + 1), float(cell));
+  std::vector<Boite> b; b.reserve(structures.size()); for (auto& s : structures) b.push_back(boiteDe(s));
+  physique->set_boites(b);
+}
 bool Monde::chargerScript(const std::string& src, const std::string& nom, std::string& erreur) {
   script = std::make_unique<Script>(*this);
   if (!script->charger(src, nom, erreur)) { script.reset(); return false; }

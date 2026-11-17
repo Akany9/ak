@@ -59,9 +59,9 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../coeur ${CMAKE_BINARY_DIR}/coeur)
 set(SHADERS_OUT ${CMAKE_BINARY_DIR}/shaders)
 FetchContent_GetProperties(bgfx SOURCE_DIR BGFX_SRC)   # bgfx_shader.sh (déclaré par bgfx.cmake)
 set(SH_INC INCLUDE_DIRS ${BGFX_SRC}/src)
-bgfx_compile_shaders(TYPE VERTEX SHADERS shaders/vs_terrain.sc shaders/vs_instance.sc shaders/vs_couleur.sc
+bgfx_compile_shaders(TYPE VERTEX SHADERS shaders/vs_terrain.sc shaders/vs_instance.sc shaders/vs_couleur.sc shaders/vs_outline.sc shaders/vs_ecran.sc
   VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying.def.sc OUTPUT_DIR ${SHADERS_OUT} OUT_FILES_VAR SH_VS ${SH_INC} AS_HEADERS)
-bgfx_compile_shaders(TYPE FRAGMENT SHADERS shaders/fs_terrain.sc shaders/fs_instance.sc shaders/fs_couleur.sc
+bgfx_compile_shaders(TYPE FRAGMENT SHADERS shaders/fs_terrain.sc shaders/fs_instance.sc shaders/fs_couleur.sc shaders/fs_outline.sc shaders/fs_thermal.sc shaders/fs_copie.sc
   VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying.def.sc OUTPUT_DIR ${SHADERS_OUT} OUT_FILES_VAR SH_FS ${SH_INC} AS_HEADERS)
 bgfx_compile_shaders(TYPE VERTEX SHADERS shaders/vs_imgui.sc
   VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying_imgui.def.sc OUTPUT_DIR ${SHADERS_OUT} OUT_FILES_VAR SH_VI ${SH_INC} AS_HEADERS)

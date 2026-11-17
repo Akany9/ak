@@ -137,7 +137,7 @@ bool chargerDonnees(Donnees& d, const char* tMat, const char* tArmes, const char
   L.num(jr, "suppression_seuil", g.suppressionSeuil); L.num(jr, "capture_rayon", g.captureRayon); L.num(jr, "capture_temps", g.captureTemps);
   L.num(jr, "ravitaillement_rayon", g.ravitaillementRayon); L.num(jr, "convoi_vitesse", g.convoiVitesse); L.num(jr, "convoi_charge", g.convoiCharge);
   L.num(jr, "inflation_inertie", g.inflationInertie); L.num(jr, "fmi_seuil", g.fmiSeuil); L.num(jr, "fmi_pret", g.fmiPret);
-  L.num(jr, "bulle_tps", g.bulleTps); L.num(jr, "chunk", g.chunk); L.num(jr, "rayon_action", g.rayonAction);
+  L.str(jr, "physique", g.physique); L.num(jr, "bulle_tps", g.bulleTps); L.num(jr, "chunk", g.chunk); L.num(jr, "rayon_action", g.rayonAction);
   L.num(jr, "suspicion_montee", g.suspicionMontee); L.num(jr, "suspicion_descente", g.suspicionDescente); L.num(jr, "sanctions_duree", g.sanctionsDuree);
   return true;
 }

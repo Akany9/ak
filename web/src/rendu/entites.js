@@ -6,6 +6,20 @@ import { STRIDE } from "../plateforme/g1_coeur.js";
 const ROLE_COULEUR = [0xb9a68f, 0xe8e2d8, 0x8d8a84, 0x9b9488, 0x6f7a5a, 0x7d7356, 0x6b6157, 0xa0a4a8, 0xc8b88a, 0x77706a, 0xb0b0a0];
 const MAT_TEINTE = [[1.0, 0.82, 0.72], [0.92, 0.92, 0.9], [0.95, 0.92, 0.85], [0.8, 0.62, 0.42], [0.7, 0.72, 0.75], [1.0, 0.9, 0.75]];
 const tmp = new THREE.Object3D(), col = new THREE.Color();
+const gris = (t) => col.setRGB(t, t, t);   // FLIR : la couleur porte la température (0..1), lue par la passe thermique
+
+// contour d'escouade à travers les murs (document r88, § 4) : extrusion dans l'espace écran proportionnelle à w,
+// dessiné seulement là où l'unité est masquée (profondeur GREATER) et hors de sa propre silhouette (stencil ≠ 1)
+const vsContour = `
+  uniform float uEpaisseur; varying vec3 vCouleur;
+  void main() {
+    mat4 m = modelMatrix * instanceMatrix;
+    vec4 pos = projectionMatrix * viewMatrix * m * vec4(position, 1.0);
+    vec3 n = (projectionMatrix * viewMatrix * m * vec4(normal, 0.0)).xyz;
+    if (length(n.xy) > 1e-5) pos.xy += normalize(n.xy) * uEpaisseur * pos.w * 0.002;
+    vCouleur = instanceColor; gl_Position = pos;
+  }`;
+const fsContour = `varying vec3 vCouleur; void main() { gl_FragColor = vec4(vCouleur, 0.75); }`;
 
 function soldat() {   // silhouette low-poly : jambes, torse, tête, arme (≈ 60 triangles)
   const parts = [[0.34, 0.85, 0.22, 0, 0.42, 0], [0.46, 0.62, 0.28, 0, 1.15, 0], [0.22, 0.24, 0.24, 0, 1.6, 0], [0.06, 0.06, 0.9, 0.18, 1.25, 0.35]];
@@ -27,8 +41,17 @@ export class Entites {
     this.bat.castShadow = this.bat.receiveShadow = true; scene.add(this.bat); this.signature = "";
     this.toits = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.06, 1), new THREE.MeshStandardMaterial({ color: 0x5b5048, roughness: 0.9 }), s.n); scene.add(this.toits);
     // unités
-    this.max = 512; this.sold = new THREE.InstancedMesh(soldat(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, flatShading: true }), this.max);
+    this.max = 512; const geo = soldat();
+    const stencil = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp };
+    this.matSoldat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, flatShading: true, ...stencil });
+    this.matChaud = new THREE.MeshBasicMaterial({ ...stencil });   // FLIR : non éclairé, couleur = température
+    this.sold = new THREE.InstancedMesh(geo, this.matSoldat, this.max);
     this.sold.castShadow = true; this.sold.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(this.sold); this.lisse = new Map();
+    this.contour = new THREE.InstancedMesh(geo, new THREE.ShaderMaterial({ vertexShader: vsContour, fragmentShader: fsContour, uniforms: { uEpaisseur: { value: 2.5 } },
+      transparent: true, depthWrite: false, depthFunc: THREE.GreaterDepth, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc,
+      stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp }), this.max);
+    this.contour.renderOrder = 10; this.contour.frustumCulled = false; this.contour.setColorAt(0, col.setRGB(1, 1, 1)); this.contour.count = 0; scene.add(this.contour);   // attribut instanceColor créé d'emblée
+    this.matBat = this.bat.material; this.matBasique = new THREE.MeshBasicMaterial();
     this.marqueur = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.65, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf2c230, transparent: true, opacity: 0.8 })); scene.add(this.marqueur);
     // traceurs (projectiles), convois, routes
     this.traceurs = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.85 }));
@@ -40,10 +63,10 @@ export class Entites {
   }
   couleurFaction(f) { return f >= 0 && f < this.couleurs.length ? this.couleurs[f] : 0x9a9a9a; }
 
-  majStructures(terrain) {
-    const { n, d } = this.coeur.structures(); let sig = "";
-    for (let i = 0; i < n; i++) sig += d[i * STRIDE.structure + 7] + "" + (d[i * STRIDE.structure + 10] + 1);   // état + propriétaire
-    if (sig === this.signature) return; this.signature = sig;
+  majStructures(flir = false) {
+    const { n, d } = this.coeur.structures(); let sig = flir ? "F" : "";
+    for (let i = 0; i < n; i++) sig += d[i * STRIDE.structure + 7] + "" + (d[i * STRIDE.structure + 10] + 1) + (flir ? (d[i * STRIDE.structure + 12] * 20 | 0) : "");   // état + propriétaire (+ chaleur)
+    if (sig === this.signature) return; this.signature = sig; this.bat.material = flir ? this.matBasique : this.matBat;
     for (let i = 0; i < n; i++) {
       const o = i * STRIDE.structure, etat = d[o + 7], role = d[o + 8], mat = d[o + 11] | 0, fac = d[o + 10];
       const h = etat === 2 ? Math.max(0.6, d[o + 4] * 0.3) : d[o + 4], pont = role === 3;
@@ -52,6 +75,7 @@ export class Entites {
       col.setHex(ROLE_COULEUR[role] ?? 0xaaaaaa); const t = MAT_TEINTE[mat] ?? [1, 1, 1]; col.r *= t[0]; col.g *= t[1]; col.b *= t[2];
       if (etat === 1) col.multiplyScalar(0.72); if (etat === 2) col.setRGB(0.35, 0.32, 0.3);
       if (role === 5 || role === 4) col.lerp(new THREE.Color(this.couleurFaction(fac)), 0.55);   // avant-postes et QG : couleur du propriétaire
+      if (flir) gris(d[o + 12]);
       this.bat.setColorAt(i, col);
       tmp.position.y = d[o + 1] + h + 0.03; tmp.scale.set(etat === 2 || pont ? 0 : d[o + 3] * 1.02, 1, d[o + 5] * 1.02); tmp.updateMatrix(); this.toits.setMatrixAt(i, tmp.matrix);
     }
@@ -68,9 +92,10 @@ export class Entites {
     const a = this.routes.geometry.attributes.position; for (let i = 0; i < a.count; i++) a.setY(i, hauteur(a.getX(i), a.getZ(i)) + 0.25); a.needsUpdate = true;
   }
 
-  majUnites(dt, joueur, echelle = 1) {   // échelle > 1 en vue carte : les soldats deviennent des repères lisibles
+  // échelle > 1 en vue carte : les soldats deviennent des repères lisibles. opts : { flir, contours, inc, terrain, origine }
+  majUnites(dt, joueur, echelle = 1, opts = {}) {
     const { n, d } = this.coeur.unites(); const k = 1 - Math.exp(-dt * 18);   // lissage 20 Hz → affichage
-    let vis = 0;
+    let vis = 0, nc = 0; const fj = this.coeur.etat()[16] | 0, T = opts.terrain; this.sold.material = opts.flir ? this.matChaud : this.matSoldat;
     for (let i = 0; i < n && vis < this.max; i++) {
       const o = i * STRIDE.unite; let l = this.lisse.get(i);
       if (!l) { l = { x: d[o], y: d[o + 1], z: d[o + 2], a: d[o + 3] }; this.lisse.set(i, l); }
@@ -82,10 +107,17 @@ export class Entites {
       if (mort) tmp.position.y += 0.2;
       tmp.updateMatrix(); this.sold.setMatrixAt(vis, tmp.matrix);
       col.setHex(this.couleurFaction(d[o + 7])); if (mort) col.multiplyScalar(0.35); if (d[o + 11] > 0.3 && !mort) col.lerp(new THREE.Color(0.6, 0.1, 0.1), 0.3);
+      if (opts.flir) gris(d[o + 17]);
       this.sold.setColorAt(vis++, col);
+      if (opts.contours && !opts.flir && !mort && i !== joueur && T && T.inc) {   // escouade du joueur (bleu), ennemi repéré (rouge)
+        const f = d[o + 7], ci = Math.floor((l.x + opts.origine.x + T.taille / 2) / T.cell), cj = Math.floor((l.z + opts.origine.z + T.taille / 2) / T.cell);
+        const repere = ci >= 0 && cj >= 0 && ci < T.n && cj < T.n && T.inc[cj * T.n + ci] < 0.01;
+        if (f === fj || repere) { this.contour.setMatrixAt(nc, tmp.matrix); this.contour.setColorAt(nc++, col.setHex(f === fj ? 0x4aa3ff : 0xff4a3a)); }
+      }
       if (i === joueur) { this.marqueur.position.set(l.x, l.y + 0.05, l.z); this.marqueur.scale.setScalar(echelle); this.joueurLisse = l; }
     }
     this.sold.count = vis; this.sold.instanceMatrix.needsUpdate = true; if (this.sold.instanceColor) this.sold.instanceColor.needsUpdate = true;
+    this.contour.count = nc; this.contour.instanceMatrix.needsUpdate = true; if (this.contour.instanceColor) this.contour.instanceColor.needsUpdate = true;
   }
 
   majProjectiles() {
@@ -97,12 +129,13 @@ export class Entites {
     this.traceurs.geometry.setDrawRange(0, m * 2); a.needsUpdate = true;
   }
 
-  majConvois() {
+  majConvois(flir = false) {
+    this.camions.material.color.setRGB(1, 1, 1); this.traceurs.material.color.setHex(flir ? 0xffffff : 0xffd27a);
     const { n, d } = this.coeur.convois(); let m = 0;
     for (let i = 0; i < n && m < 64; i++) {
       const o = i * STRIDE.convoi; if (d[o + 7] === 1) continue;
       tmp.position.set(d[o], d[o + 1], d[o + 2]); tmp.rotation.set(0, d[o + 3], d[o + 7] === 2 ? 0.4 : 0); tmp.scale.setScalar(1); tmp.updateMatrix();
-      this.camions.setMatrixAt(m, tmp.matrix); col.setHex(this.couleurFaction(d[o + 4])); if (d[o + 7] === 2) col.setRGB(0.15, 0.13, 0.12); this.camions.setColorAt(m++, col);
+      this.camions.setMatrixAt(m, tmp.matrix); col.setHex(this.couleurFaction(d[o + 4])); if (d[o + 7] === 2) col.setRGB(0.15, 0.13, 0.12); if (flir) gris(d[o + 7] === 2 ? 1 : 0.75); this.camions.setColorAt(m++, col);
     }
     this.camions.count = m; this.camions.instanceMatrix.needsUpdate = true; if (this.camions.instanceColor) this.camions.instanceColor.needsUpdate = true;
   }

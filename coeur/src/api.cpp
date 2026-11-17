@@ -53,6 +53,7 @@ float g1_terrain_taille(void) { return pret() ? float(g_m->taille) : 0; }
 float g1_niveau_eau(void) { return pret() ? g_m->D.scenario.niveauEau : -1; }
 int g1_terrain_revision(void) { return pret() ? g_m->revisionTerrain : 0; }
 const float* g1_terrain_hauteurs(void) { return pret() ? g_m->h.data() : nullptr; }
+const unsigned char* g1_splatmap(void) { return pret() ? g_m->splat.data() : nullptr; }
 const float* g1_cellules(void) {
   if (!pret()) return nullptr; b_cell.resize(g_m->cellules.size() * 4);
   for (size_t i = 0; i < g_m->cellules.size(); ++i) { const Cellule& c = g_m->cellules[i]; float* o = &b_cell[i * 4]; o[0] = float(c.biome); o[1] = float(c.zone); o[2] = c.proprio; o[3] = c.ressource; }

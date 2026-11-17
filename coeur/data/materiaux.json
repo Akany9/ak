@@ -1,0 +1,11 @@
+{
+  "_source": "DÉCLARÉ. epaisseur_mm × resistance = pouvoir perforant (mm équivalent) nécessaire pour traverser ; pv_par_m3 : solidité de la coque.",
+  "materiaux": [
+    { "nom": "brique",  "epaisseur_mm": 240, "resistance": 1.0, "pv_par_m3": 40 },
+    { "nom": "beton",   "epaisseur_mm": 300, "resistance": 2.5, "pv_par_m3": 80 },
+    { "nom": "pierre",  "epaisseur_mm": 400, "resistance": 1.5, "pv_par_m3": 60 },
+    { "nom": "bois",    "epaisseur_mm": 40,  "resistance": 0.4, "pv_par_m3": 15 },
+    { "nom": "tole",    "epaisseur_mm": 3,   "resistance": 4.0, "pv_par_m3": 10 },
+    { "nom": "adobe",   "epaisseur_mm": 300, "resistance": 0.6, "pv_par_m3": 25 }
+  ]
+}

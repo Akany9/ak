@@ -1,0 +1,63 @@
+{
+  "id": "cuba_1958",
+  "nom": "Cuba, 1958 — de la Sierra Maestra à Santiago",
+  "epoque": "Cuba (1956-1962) : de la guérilla à l'État",
+  "graine": 1958,
+  "heure_depart": 6,
+  "monde": { "taille": 4096, "cellule": 16, "alt_min": 0, "alt_max": 420, "rugosite": 0.45, "niveau_eau": 3 },
+  "aplanir": [[640, 640, 1600, 1600, 25], [-1400, -1300, -1150, -1050, 260]],
+  "factions": [
+    { "id": "regime", "nom": "Régime de Batista", "type": "etat", "couleur": "#2c3e50",
+      "tresor": 3000000, "masse_monetaire": 40000000, "impot": 0.18, "budget": { "education": 0.1, "defense": 0.45, "sante": 0.08, "infrastructures": 0.12, "dette": 0.05 },
+      "doctrine": "contre_guerilla", "agressivite": 0.5, "prudence": 0.5, "corruption": 0.4, "moral": 0.45, "stabilite": 0.45, "ia": true },
+    { "id": "m26j", "nom": "Mouvement du 26 Juillet", "type": "insurge", "couleur": "#c0392b",
+      "tresor": 60000, "masse_monetaire": 200000, "impot": 0.05, "budget": { "education": 0.1, "defense": 0.6, "sante": 0.15, "infrastructures": 0.0, "dette": 0 },
+      "doctrine": "guerre_de_maquis", "agressivite": 0.6, "prudence": 0.6, "corruption": 0.02, "moral": 0.8, "stabilite": 0.6, "ia": false },
+    { "id": "mafia", "nom": "Syndicats des casinos", "type": "mafia", "couleur": "#d4ac0d",
+      "tresor": 900000, "masse_monetaire": 5000000, "impot": 0.0, "budget": { "education": 0, "defense": 0.15, "sante": 0, "infrastructures": 0.05, "dette": 0 },
+      "doctrine": "corruption", "agressivite": 0.1, "prudence": 0.9, "corruption": 0.8, "moral": 0.6, "stabilite": 0.6, "ia": true },
+    { "id": "usa", "nom": "États-Unis (département d'État)", "type": "puissance_etrangere", "couleur": "#2e86c1",
+      "tresor": 50000000, "masse_monetaire": 900000000, "impot": 0.2, "budget": { "education": 0.1, "defense": 0.3, "sante": 0.1, "infrastructures": 0.1, "dette": 0.05 },
+      "doctrine": "endiguement", "agressivite": 0.1, "prudence": 0.9, "corruption": 0.05, "moral": 0.7, "stabilite": 0.9, "ia": true }
+  ],
+  "relations": [["regime", "m26j", -90, "guerre"], ["regime", "mafia", 60], ["regime", "usa", 40], ["m26j", "usa", -10], ["m26j", "mafia", -40]],
+  "quartiers": [
+    { "rect": [704, 704, 1088, 1536],  "zone": "residentiel_moyen", "densite": 0.6, "hauteur": [5, 9],  "materiau": "adobe",  "faction": "regime" },
+    { "rect": [1152, 704, 1536, 1088], "zone": "commercial",        "densite": 0.6, "hauteur": [6, 12], "materiau": "pierre", "faction": "mafia" },
+    { "rect": [1152, 1152, 1536, 1536],"zone": "industriel",        "densite": 0.5, "hauteur": [6, 10], "materiau": "beton",  "faction": "regime" }
+  ],
+  "structures": [
+    { "role": "qg",         "pos": [1120, 1250], "dim": [50, 12, 40], "materiau": "beton",  "faction": "regime" },
+    { "role": "qg",         "pos": [-1300, -1200], "dim": [16, 4, 10], "materiau": "bois",  "faction": "m26j" },
+    { "role": "radio",      "pos": [-1250, -1150], "dim": [3, 18, 3], "materiau": "tole",   "faction": "m26j" },
+    { "role": "avant_poste","pos": [-1000, -900], "dim": [8, 2.5, 6], "materiau": "bois",   "faction": "m26j" },
+    { "role": "avant_poste","pos": [-600, -500],  "dim": [10, 3, 8],  "materiau": "beton",  "faction": "regime" },
+    { "role": "avant_poste","pos": [0, 0],        "dim": [10, 3, 8],  "materiau": "beton",  "faction": "regime" },
+    { "role": "avant_poste","pos": [400, 500],    "dim": [10, 3, 8],  "materiau": "beton",  "faction": "regime" },
+    { "role": "mine",       "pos": [-200, 700],   "dim": [30, 10, 20],"materiau": "tole",   "faction": "regime" },
+    { "role": "hopital",    "pos": [1120, 1500],  "dim": [30, 9, 24], "materiau": "beton",  "faction": "regime" },
+    { "role": "banque",     "pos": [1120, 820],   "dim": [36, 14, 30],"materiau": "pierre", "faction": "mafia" },
+    { "role": "pont",       "pos": [200, 250],    "dim": [10, 3, 60], "lacet": 0.67, "materiau": "beton" }
+  ],
+  "routes": [[-1300, -1200, -1000, -900], [-1000, -900, -600, -500], [-600, -500, 0, 0], [0, 0, 400, 500], [400, 500, 704, 704], [-200, 700, 400, 500], [1088, 704, 1088, 1600], [1152, 640, 1152, 1600]],
+  "escouades": [
+    { "faction": "regime", "pos": [-600, -480], "nb": 6, "arme": "m1_garand",  "objectif": [-600, -480] },
+    { "faction": "regime", "pos": [0, 20],      "nb": 6, "arme": "m1_carbine", "objectif": [0, 20] },
+    { "faction": "regime", "pos": [400, 520],   "nb": 5, "arme": "bar_m1918",  "objectif": [400, 520] },
+    { "faction": "regime", "pos": [1120, 1290], "nb": 8, "arme": "m1_garand",  "objectif": [1120, 1290] },
+    { "faction": "regime", "pos": [-200, 730],  "nb": 4, "arme": "m1_carbine", "objectif": [-200, 730] },
+    { "faction": "m26j",   "pos": [-1000, -880],"nb": 6, "arme": "m1_garand",  "objectif": [-1000, -880] },
+    { "faction": "m26j",   "pos": [-1280, -1180],"nb": 5, "arme": "thompson",  "objectif": [-1280, -1180] },
+    { "faction": "m26j",   "pos": [-1290, -1170],"nb": 2, "arme": "bazooka_m9","objectif": [-1290, -1170] },
+    { "faction": "mafia",  "pos": [1120, 860],  "nb": 4, "arme": "thompson",   "objectif": [1120, 860] }
+  ],
+  "joueur": { "faction": "m26j", "statut": "commandant", "pos": [-1270, -1160], "arme": "m1_garand" },
+  "actes": { "capital_acte_II": 120000 },
+  "chronologie": [
+    { "heure": 0.01, "type": "message",   "texte": "Sierra Maestra, 1958. Radio Rebelde émet depuis La Plata." },
+    { "heure": 2,    "type": "choc_prix", "cible": "biens", "valeur": 0.15, "texte": "Récolte sucrière : hausse des cours." },
+    { "heure": 4,    "type": "crise",     "cible": "regime", "valeur": 0.15, "texte": "Embargo américain sur les armes à destination du régime." },
+    { "heure": 8,    "type": "renforts",  "cible": "regime", "valeur": 12, "texte": "Offensive d'été : renforts gouvernementaux." },
+    { "heure": 12,   "type": "renforts",  "cible": "m26j",   "valeur": 8,  "texte": "Des volontaires rejoignent la colonne." }
+  ]
+}

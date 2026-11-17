@@ -1,0 +1,4 @@
+build/
+coeur/build/
+natif/build*/
+node_modules/

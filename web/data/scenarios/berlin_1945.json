@@ -1,0 +1,68 @@
+{
+  "id": "berlin_1945",
+  "nom": "Berlin, avril 1945 — la Spree",
+  "epoque": "Seconde Guerre mondiale : Europe (1939-1945)",
+  "graine": 1945,
+  "heure_depart": 5.5,
+  "monde": { "taille": 2048, "cellule": 8, "alt_min": 30, "alt_max": 52, "rugosite": 0.45, "niveau_eau": 31 },
+  "aplanir": [[-960, -960, 960, 960, 34], [-1024, -24, 1024, 24, 26]],
+  "factions": [
+    { "id": "armee_rouge", "nom": "Armée rouge (1er front biélorusse)", "type": "etat", "couleur": "#c0392b",
+      "tresor": 4000000, "masse_monetaire": 30000000, "impot": 0.25, "budget": { "education": 0.05, "defense": 0.55, "sante": 0.12, "infrastructures": 0.1, "dette": 0.03 },
+      "doctrine": "assaut_urbain", "agressivite": 0.8, "prudence": 0.3, "corruption": 0.1, "moral": 0.75, "stabilite": 0.7, "ia": true },
+    { "id": "wehrmacht", "nom": "Wehrmacht (défense de Berlin)", "type": "etat", "couleur": "#7f8c8d",
+      "tresor": 600000, "masse_monetaire": 25000000, "impot": 0.3, "budget": { "education": 0.0, "defense": 0.75, "sante": 0.08, "infrastructures": 0.05, "dette": 0.1 },
+      "doctrine": "defense_en_profondeur", "agressivite": 0.3, "prudence": 0.7, "corruption": 0.25, "moral": 0.3, "stabilite": 0.35, "ia": true },
+    { "id": "marche_noir", "nom": "Réseaux du marché noir", "type": "mafia", "couleur": "#8e44ad",
+      "tresor": 150000, "masse_monetaire": 1000000, "impot": 0.0, "budget": { "education": 0, "defense": 0.2, "sante": 0, "infrastructures": 0, "dette": 0 },
+      "doctrine": "contrebande", "agressivite": 0.2, "prudence": 0.8, "corruption": 0.6, "moral": 0.5, "stabilite": 0.5, "ia": true }
+  ],
+  "relations": [["armee_rouge", "wehrmacht", -100, "guerre"], ["marche_noir", "armee_rouge", 10], ["marche_noir", "wehrmacht", 5]],
+  "quartiers": [
+    { "rect": [-704, -704, -64, -128], "zone": "residentiel_dense", "densite": 0.8, "hauteur": [12, 22], "materiau": "brique", "ruine": 0.7, "faction": "armee_rouge" },
+    { "rect": [64, -704, 704, -128],   "zone": "residentiel_dense", "densite": 0.7, "hauteur": [12, 22], "materiau": "brique", "ruine": 0.7, "faction": "armee_rouge" },
+    { "rect": [-704, 128, -64, 704],   "zone": "residentiel_dense", "densite": 0.8, "hauteur": [14, 24], "materiau": "brique", "ruine": 0.5, "faction": "wehrmacht" },
+    { "rect": [64, 128, 704, 512],     "zone": "commercial",        "densite": 0.6, "hauteur": [10, 18], "materiau": "pierre", "ruine": 0.5, "faction": "wehrmacht" },
+    { "rect": [64, 576, 704, 704],     "zone": "industriel",        "densite": 0.5, "hauteur": [8, 14],  "materiau": "beton",  "ruine": 0.4, "faction": "wehrmacht" }
+  ],
+  "structures": [
+    { "role": "qg",         "pos": [0, 420],    "dim": [110, 28, 76], "materiau": "pierre", "faction": "wehrmacht" },
+    { "role": "qg",         "pos": [0, -840],   "dim": [30, 8, 20],   "materiau": "brique", "faction": "armee_rouge" },
+    { "role": "pont",       "pos": [0, 0],      "dim": [14, 3, 120],  "materiau": "pierre" },
+    { "role": "pont",       "pos": [-512, 0],   "dim": [12, 3, 120],  "materiau": "beton" },
+    { "role": "pont",       "pos": [512, 0],    "dim": [12, 3, 120],  "materiau": "beton" },
+    { "role": "avant_poste","pos": [22, -110],   "dim": [8, 2.5, 6],   "materiau": "bois",   "faction": "armee_rouge" },
+    { "role": "avant_poste","pos": [-490, -110],"dim": [8, 2.5, 6],   "materiau": "bois",   "faction": "armee_rouge" },
+    { "role": "avant_poste","pos": [490, -110], "dim": [8, 2.5, 6],   "materiau": "bois",   "faction": "armee_rouge" },
+    { "role": "avant_poste","pos": [22, 110],   "dim": [8, 2.5, 6],   "materiau": "beton",  "faction": "wehrmacht" },
+    { "role": "avant_poste","pos": [-490, 110], "dim": [8, 2.5, 6],   "materiau": "beton",  "faction": "wehrmacht" },
+    { "role": "avant_poste","pos": [490, 110], "dim": [8, 2.5, 6],   "materiau": "beton",  "faction": "wehrmacht" },
+    { "role": "radio",      "pos": [-30, -760], "dim": [4, 30, 4],    "materiau": "tole",   "faction": "armee_rouge" },
+    { "role": "hopital",    "pos": [-32, 620],  "dim": [40, 16, 50],  "materiau": "brique", "faction": "wehrmacht" },
+    { "role": "hopital",    "pos": [-32, -560], "dim": [40, 12, 40],  "materiau": "brique", "faction": "armee_rouge" },
+    { "role": "banque",     "pos": [32, 250],   "dim": [30, 14, 24],  "materiau": "pierre", "faction": "marche_noir" }
+  ],
+  "routes": [[0, -1024, 0, 1024], [-512, -1024, -512, 1024], [512, -1024, 512, 1024], [-1024, -96, 1024, -96], [-1024, 96, 1024, 96]],
+  "escouades": [
+    { "faction": "armee_rouge", "pos": [-512, -320], "nb": 6, "arme": "ppsh41",     "objectif": [-512, 100] },
+    { "faction": "armee_rouge", "pos": [0, -330],    "nb": 6, "arme": "mosin_9130", "objectif": [0, 100] },
+    { "faction": "armee_rouge", "pos": [512, -320],  "nb": 5, "arme": "dp28",       "objectif": [512, 100] },
+    { "faction": "armee_rouge", "pos": [20, -140],   "nb": 4, "arme": "ppsh41",     "objectif": [20, -140] },
+    { "faction": "wehrmacht",   "pos": [0, 130],     "nb": 5, "arme": "kar98k",     "objectif": [0, 130] },
+    { "faction": "wehrmacht",   "pos": [-30, 150],   "nb": 2, "arme": "mg42",       "objectif": [-30, 150] },
+    { "faction": "wehrmacht",   "pos": [-512, 130],  "nb": 4, "arme": "mp40",       "objectif": [-512, 130] },
+    { "faction": "wehrmacht",   "pos": [512, 130],   "nb": 4, "arme": "kar98k",     "objectif": [512, 130] },
+    { "faction": "wehrmacht",   "pos": [30, 160],    "nb": 2, "arme": "panzerfaust","objectif": [30, 160] },
+    { "faction": "wehrmacht",   "pos": [0, 360],     "nb": 6, "arme": "mp40",       "objectif": [0, 360] }
+  ],
+  "joueur": { "faction": "armee_rouge", "statut": "agent", "pos": [40, -250], "arme": "mosin_9130" },
+  "actes": { "capital_acte_II": 4500000 },
+  "chronologie": [
+    { "heure": 0.01, "type": "message",   "texte": "29 avril 1945, 5 h 30. Ponts de la Spree. Reconnaître le dispositif adverse avant l'assaut." },
+    { "heure": 0.5,  "type": "renforts",  "cible": "armee_rouge", "valeur": 8, "texte": "Arrivée d'une compagnie de fusiliers." },
+    { "heure": 2,    "type": "choc_prix", "cible": "nourriture", "valeur": 0.6, "texte": "Pénurie alimentaire dans la ville assiégée." },
+    { "heure": 3,    "type": "crise",     "cible": "wehrmacht", "valeur": 0.2, "texte": "Désertions dans les unités de la défense." },
+    { "heure": 6,    "type": "famine",    "cible": "wehrmacht", "valeur": 0.4, "texte": "Les dépôts de vivres du secteur sud sont épuisés." },
+    { "heure": 12,   "type": "statut",    "valeur": 2, "texte": "Commandement d'une section confié au joueur." }
+  ]
+}

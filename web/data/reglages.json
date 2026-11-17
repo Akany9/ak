@@ -1,0 +1,21 @@
+{
+  "_source": "Valeurs DÉCLARÉES (absentes du document de conception). Chacune est justifiée ci-dessous ; à mesurer au banc (g1_sim) avant de changer.",
+  "marche": 1.6,            "_marche": "m/s, marche tactique arme épaulée",
+  "course": 3.6,            "_course": "m/s, course chargée (équipement ~20 kg)",
+  "sprint": 5.6,            "_sprint": "m/s, sprint court",
+  "accel": 9.0,             "_accel": "m/s², inertie du bas du corps : 0 → course en 0,4 s",
+  "gravite": 9.81,
+  "perception": 180,        "_perception": "m, identification d'un combattant de jour en milieu urbain",
+  "perception_nuit": 60,    "_perception_nuit": "m, sans éclairage",
+  "champ_vision": 2.2,      "_champ_vision": "rad (~126°), champ d'attention",
+  "delai_perception": 0.5,  "_delai_perception": "s, réactualisation échelonnée de la perception (coût CPU)",
+  "suppression_seuil": 0.6, "_suppression_seuil": "0..1, au-delà l'IA cherche un abri",
+  "capture_rayon": 25,      "capture_temps": 10,
+  "ravitaillement_rayon": 15,
+  "convoi_vitesse": 12,     "_convoi_vitesse": "m/s de jeu (~43 km/h, camion sur route dégradée)",
+  "convoi_charge": 400,     "_convoi_charge": "cartouches-équivalent par convoi (unités du stock)",
+  "inflation_inertie": 0.92,
+  "fmi_seuil": -200000,     "fmi_pret": 1000000,
+  "suspicion_montee": 0.08, "suspicion_descente": 0.03, "_suspicion": "par seconde : ~12 s exposé et armé avant d'être démasqué",
+  "sanctions_duree": 720,   "_sanctions_duree": "heures de jeu (30 jours) pour la levée complète d'un embargo"
+}

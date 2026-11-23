@@ -1,0 +1,41 @@
+// Ressources Windows : icône, manifeste, informations de version, fichiers embarqués.
+// Encodage UTF-8 (windres et rc.exe de MSVC).
+#pragma code_page(65001)
+#include <winver.h>
+#include "../src/resource_ids.h"
+
+SQ_RES_ICON_MAIN ICON "app.ico"
+1 24 "app.manifest"
+
+SQ_RES_APP_HTML_GZ 10 "app.html.gz"
+SQ_RES_ICON_PNG 10 "icon.png"
+SQ_RES_ICON_ICO 10 "app.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION SQ_VERSION_RC
+ PRODUCTVERSION SQ_VERSION_RC
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040c04b0"
+        BEGIN
+            VALUE "CompanyName", "Solfège Quest"
+            VALUE "FileDescription", "Solfège Quest — solfège, studio et composition"
+            VALUE "FileVersion", SQ_VERSION_RC_STR
+            VALUE "InternalName", "SolfegeQuest"
+            VALUE "LegalCopyright", "Échantillons : voir crédits dans l’application"
+            VALUE "OriginalFilename", "SolfegeQuest.exe"
+            VALUE "ProductName", "Solfège Quest"
+            VALUE "ProductVersion", SQ_VERSION_RC_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x040c, 1200
+    END
+END

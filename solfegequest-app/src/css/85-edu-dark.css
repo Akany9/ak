@@ -1,0 +1,66 @@
+/* Généré par tools/gen_dark.py — ne pas modifier à la main. */
+#app[data-mode=edu] .xbar i { background: var(--accent) !important; }
+#app[data-mode=edu] .edsecs button.on { background: var(--accent) !important; box-shadow: none !important; }
+#app[data-mode=edu] .eri:hover { background: rgba(255, 255, 255, .05) !important; }
+#app[data-mode=edu] .eri.on .eric, #app[data-mode=edu] .erc.open .eric { background: var(--accent) !important; box-shadow: none !important; }
+#app[data-mode=edu] .erc.open { background: rgba(255, 255, 255, .05) !important; }
+#app[data-mode=edu] .erl:hover { background: rgba(255, 255, 255, .05) !important; }
+#app[data-mode=edu] .erl.on { background: color-mix(in srgb, var(--cc,var(--accent)) 16%, #262628) !important; }
+#app[data-mode=edu] .erl.done .erk { background: color-mix(in srgb, #2e9e5b 35%, #262628) !important; }
+#app[data-mode=edu] .edhero { background: var(--accent) !important; box-shadow: none !important; }
+#app[data-mode=edu] .edhero:before { background: rgba(255, 255, 255, 0.080) !important; }
+#app[data-mode=edu] .chcard { background: var(--cc) !important; border: 1px solid color-mix(in srgb, var(--cc) 30%, rgba(255, 255, 255, .1)) !important; box-shadow: none !important; }
+#app[data-mode=edu] .chcard:hover { box-shadow: none !important; }
+#app[data-mode=edu] .chcard:after { background: var(--cc) !important; }
+#app[data-mode=edu] .chi { background: var(--cc) !important; box-shadow: none !important; }
+#app[data-mode=edu] .lscard:hover { background: rgba(255, 255, 255, .05) !important; }
+#app[data-mode=edu] .lsn { background: color-mix(in srgb, var(--cc,var(--accent)) 16%, #262628) !important; color: color-mix(in srgb, var(--cc,var(--accent)) 80%, var(--ink)) !important; }
+#app[data-mode=edu] .lhead:after { background: var(--accent) !important; }
+#app[data-mode=edu] .eh:before { background: var(--accent2) !important; }
+#app[data-mode=edu] .enote { box-shadow: none !important; }
+#app[data-mode=edu] .enote.tip { background: #262628 !important; color: color-mix(in srgb, #4d3a0b 45%, #fff) !important; }
+#app[data-mode=edu] .enote.tip .ni { background: #f5c25b !important; }
+#app[data-mode=edu] .enote.warn { background: #262628 !important; color: color-mix(in srgb, #5a2216 45%, #fff) !important; }
+#app[data-mode=edu] .enote.warn .ni { background: #f0866c !important; }
+#app[data-mode=edu] .enote.info { background: #262628 !important; color: color-mix(in srgb, #10403a 45%, #fff) !important; }
+#app[data-mode=edu] .enote.info .ni { background: #46b3a3 !important; }
+#app[data-mode=edu] .enote.memo { background: #262628 !important; color: color-mix(in srgb, #352359 45%, #fff) !important; }
+#app[data-mode=edu] .enote.memo .ni { background: #9a84d6 !important; }
+#app[data-mode=edu] .etbl { background: rgba(255, 255, 255, .05) !important; }
+#app[data-mode=edu] .etbl th { background: var(--accent) !important; }
+#app[data-mode=edu] .etbl td, #app[data-mode=edu] .etbl tbody th { border-top: 1px solid rgba(255, 255, 255, .1) !important; }
+#app[data-mode=edu] .etbl tbody tr:nth-child(2n) td { background: rgba(255, 255, 255, .05) !important; }
+#app[data-mode=edu] .etbl figcaption { border-top: 1px solid rgba(255, 255, 255, .1) !important; }
+#app[data-mode=edu] .efig { background: var(--paper) !important; box-shadow: none !important; }
+#app[data-mode=edu] .fchip { background: #262628 !important; }
+#app[data-mode=edu] .fchip.semi { background: color-mix(in srgb, #ffe9b4 14%, #262628) !important; color: color-mix(in srgb, #5a3d05 45%, #fff) !important; }
+#app[data-mode=edu] .gtile { background: rgba(255, 255, 255, .05) !important; box-shadow: none !important; }
+#app[data-mode=edu] .gtile:hover { background: #262628 !important; }
+#app[data-mode=edu] .gtile.hit, #app[data-mode=edu] .gtile.sel { background: color-mix(in srgb, var(--accent) 28%, #262628) !important; }
+#app[data-mode=edu] .gtab { color: color-mix(in srgb, #3d342a 45%, #fff) !important; }
+#app[data-mode=edu] .gbig { background: var(--paper) !important; box-shadow: none !important; }
+#app[data-mode=edu] .equiz { background: #262628 !important; border: 1px solid color-mix(in srgb, var(--accent2) 35%, rgba(255, 255, 255, .1)) !important; box-shadow: none !important; }
+#app[data-mode=edu] .qopt { background: #262628 !important; border: 1px solid rgba(255, 255, 255, .1) !important; box-shadow: none !important; }
+#app[data-mode=edu] .qopt:hover { background: #262628 !important; }
+#app[data-mode=edu] .qopt.ok { background: #262628 !important; }
+#app[data-mode=edu] .qopt.ko { background: #262628 !important; }
+#app[data-mode=edu] .qfb b.r { color: color-mix(in srgb, #b13525 45%, #fff) !important; }
+#app[data-mode=edu] .edrill.embedded { box-shadow: none !important; }
+#app[data-mode=edu] .etool select, #app[data-mode=edu] .edrill select { background: rgba(255, 255, 255, .05) !important; color: color-mix(in srgb, #2a241e 45%, #fff) !important; border-color: rgba(255, 255, 255, .1) !important; }
+#app[data-mode=edu] .etool .seg, #app[data-mode=edu] .edrill .seg { border-color: rgba(255, 255, 255, .1) !important; }
+#app[data-mode=edu] .etool .seg > button, #app[data-mode=edu] .edrill .seg > button { color: var(--ink) !important; }
+#app[data-mode=edu] .dcard { background: rgba(255, 255, 255, .05) !important; box-shadow: none !important; }
+#app[data-mode=edu] .dcard:hover { box-shadow: none !important; }
+#app[data-mode=edu] .dci { background: var(--accent) !important; box-shadow: none !important; }
+#app[data-mode=edu] .dbest { background: color-mix(in srgb, #ffeabd 14%, #262628) !important; }
+#app[data-mode=edu] .dst { border: 1px solid rgba(255, 255, 255, .1) !important; }
+#app[data-mode=edu] .dans { background: #262628 !important; border: 1px solid rgba(255, 255, 255, .1) !important; box-shadow: none !important; color: color-mix(in srgb, #2a241e 45%, #fff) !important; }
+#app[data-mode=edu] .dans:hover:not(:disabled) { background: #262628 !important; }
+#app[data-mode=edu] .dans.ok { background: #262628 !important; }
+#app[data-mode=edu] .dans.ko { background: #262628 !important; }
+#app[data-mode=edu] .dfb b.r { color: color-mix(in srgb, #b13525 45%, #fff) !important; }
+#app[data-mode=edu] .gcat { background: rgba(255, 255, 255, .05) !important; backdrop-filter: none !important; }
+#app[data-mode=edu] .gt { border-bottom: 1px solid rgba(255, 255, 255, .1) !important; }
+#app[data-mode=edu] .mpend { background: #d9a566 !important; box-shadow: none !important; }
+#app[data-mode=edu] .mpend:before { background: #2c1a0a !important; }
+#app[data-mode=edu] .trow2 { border-bottom: 1px solid rgba(255, 255, 255, .1) !important; }

@@ -7,8 +7,8 @@
 #define SQ_RES_ICON_PNG 102
 #define SQ_RES_ICON_ICO 103
 
-#define SQ_VERSION_STR "1.5.0"
-#define SQ_VERSION_RC 1, 5, 0, 0
-#define SQ_VERSION_RC_STR "1.5.0.0"
+#define SQ_VERSION_STR "1.6.0"
+#define SQ_VERSION_RC 1, 6, 0, 0
+#define SQ_VERSION_RC_STR "1.6.0.0"
 
 #endif

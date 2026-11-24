@@ -14,7 +14,9 @@ node tools/build.mjs --exe        # + ../solfegequest-cpp/res/app.html.gz, puis 
 |---|---|
 | `src/index.html` | gabarit (`/*{{FONTS}}*/`, `/*{{CSS}}*/`, `<!--{{SPRITE}}-->`, `/*{{JS}}*/`) |
 | `src/css/00-base.css` | styles d'origine (reformatés) |
-| `src/css/90-catalina.css` | **thème macOS Catalina** (v1.5) |
+| `src/css/85-edu-dark.css` | équivalents sombres du module Éducation, générés par `tools/gen_dark.py` |
+| `src/css/90-catalina.css` | **thème Catalina / GarageBand sombre** |
+| `src/js/30-home.js` | **accueil en carrousel** façon GarageBand |
 | `src/js/00-app.js` | code d'origine (reformaté ; noms locaux minifiés, noms globaux d'origine) |
 | `src/js/40-score-preview.js` | **aperçu de la note à poser** sur les partitions |
 | `src/js/50-studio-transport.js` | **barre de transport unique et contextuelle** du Studio |
@@ -40,3 +42,12 @@ node tools/build.mjs --exe        # + ../solfegequest-cpp/res/app.html.gz, puis 
 - **Composition** : en mode « Ajouter » (onglet Partition) et « Écrire » (éditeur plein écran), une
   note fantôme suit la souris (hauteur, place, tête, hampe, crochets, point, altération, lignes
   supplémentaires) avec une bulle « Sol4 · Noire pointée — mesure 2, temps 3 » ; en rouge hors région.
+
+## Changements de la v1.6
+
+- **Thème sombre partout**, façon GarageBand : Accueil, Éducation et Composition passent en apparence
+  sombre (fond presque noir, cartes anthracite, texte blanc, contrôles segmentés gris, liens bleus
+  « ‹ Accueil »). Toujours sans verre ni dégradé hors Studio et clavier ; partitions sur papier blanc.
+- **Accueil en carrousel** : une grande carte centrée (icône, titre, description, « Entrer ›»), voisines
+  visibles, points de pagination, flèches ← → du clavier, et une rangée de raccourcis en icônes qui
+  ouvrent directement une section (ex. Studio › Enregistreur, Éducation › Exercices).

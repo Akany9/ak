@@ -1,0 +1,41 @@
+/* =====================================================================
+   v1.6.1 — échelle de la version 2.0 et choix de la couleur des pistes
+   ===================================================================== */
+
+/* Commande d'échelle « − 85 % + » */
+.uiscale {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px; border-radius: 8px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .08);
+  font-family: var(--f-display, inherit);
+  flex: none;
+}
+.uiscale button { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--ink2, #c7c7cc); }
+.uiscale button:hover { background: rgba(255, 255, 255, .1); color: var(--ink, #fff); }
+.uiscale .ic, .uiscale svg { width: 14px; height: 14px; }
+.uiscale b { min-width: 46px; text-align: center; font-size: .78rem; font-weight: 600; color: var(--ink, #fff); cursor: pointer; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { .uiscale b { min-width: 38px; } }
+.uiscale-home { position: fixed; right: 18px; bottom: 16px; z-index: 40; }
+
+/* Pastille de couleur des pistes : cliquable */
+.thead .tcol, .cstrip .tcol { cursor: pointer; }
+.thead .tcol { width: 7px; transition: width .12s ease, filter .12s ease; }
+.thead .tcol:hover { width: 10px; filter: brightness(1.15); }
+
+/* Fenêtre de choix de couleur */
+.menu.tcolor-pop { width: 260px; padding: 10px; }
+.tcolor-pop .tc-title { display: flex; align-items: center; gap: .55em; padding: 2px 4px 10px; font-weight: 600; font-size: .9em; color: var(--ink, #fff); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tcolor-pop .tc-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); }
+.tcolor-pop .tc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; padding: 0 2px 4px; }
+.menu.tcolor-pop .tcsw {
+  width: 26px; height: 26px; padding: 0; border-radius: 50%; display: block;
+  background: var(--sw);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), inset 0 0 0 1px rgba(0, 0, 0, .25), 0 1px 2px rgba(0, 0, 0, .4);
+  transition: transform .1s ease;
+}
+.menu.tcolor-pop .tcsw:hover { background: var(--sw); transform: scale(1.12); }
+.menu.tcolor-pop .tcsw.on { box-shadow: 0 0 0 2px var(--bg1, #1c1c1e), 0 0 0 4px var(--accent, #0a84ff); }
+.tcolor-pop .tc-custom { display: flex; align-items: center; gap: .7em; padding: .55em .8em; border-radius: 12px; font-weight: 600; font-size: .94em; color: var(--ink, #fff); cursor: pointer; }
+.tcolor-pop .tc-custom:hover { background: var(--accent-soft, rgba(255, 255, 255, .12)); }
+.tcolor-pop .tc-custom input[type=color] { margin-left: auto; width: 34px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: none; cursor: pointer; }

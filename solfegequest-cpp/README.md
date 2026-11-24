@@ -15,6 +15,20 @@ aucune DLL hors Windows) :
 Les données (profil, `journal.txt`, fichiers `.sqproj`, exports) sont aux **mêmes emplacements** que la version Go :
 les projets existants sont retrouvés tels quels.
 
+## Version 1.6.1
+
+Interface de la **v1.6.0** (thème sombre façon GarageBand, accueil en carrousel), avec deux ajouts :
+
+- **Échelle de la version 2.0** : réglable par écran (Composition à 85 % par défaut, autres écrans à 100 %), de 70 % à 140 % par pas de 5 %.
+  Commande « − 85 % + » dans la barre du haut (en bas à droite sur l'accueil) ; clic sur le pourcentage = 100 % ;
+  raccourcis Ctrl+Alt+= / Ctrl+Alt+− / Ctrl+Alt+0. Mémorisée par écran.
+- **Couleur des pistes (Composition)** : clic droit sur une piste → « Couleur de la piste… », ou clic sur la barre de couleur
+  à gauche de la piste. Palette de 14 couleurs, « Aucune (gris neutre) », « Couleur automatique », couleur personnalisée.
+  Annulable (Ctrl+Z) et enregistrée dans le projet.
+
+Sources de l'interface : `../solfegequest-app` (`src/js/60-ui-scale.js`, `src/js/70-track-color.js`, `src/css/95-v161.css`),
+reconstruite avec `node tools/build.mjs --exe`, puis `./build.sh`.
+
 ## Options en ligne de commande (inchangées)
 
 ```

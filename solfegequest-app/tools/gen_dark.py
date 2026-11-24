@@ -84,43 +84,6 @@ def fix_border(v):
     return v
 
 
-import colorsys
-
-
-def no_red_green(v):
-    """Sans rouge ni vert (v1.7) : teintes vertes → bleu, teintes rouges → orange (luminosité conservée)."""
-    def conv(rgb):
-        h, l, sa = colorsys.rgb_to_hls(*(c / 255 for c in rgb))
-        deg = h * 360
-        if sa < 0.18:
-            return None
-        if 75 <= deg <= 175:
-            nh = 211 / 360            # bleu système
-        elif deg >= 330 or deg <= 18:
-            nh = 33 / 360             # orange système
-        else:
-            return None
-        r, g, b = colorsys.hls_to_rgb(nh, l, sa)
-        return '#%02x%02x%02x' % (round(r * 255), round(g * 255), round(b * 255))
-
-    def hx(m):
-        h = m.group(0)
-        if len(h) not in (4, 7, 9):
-            return h
-        c = conv(hex_rgb(h[:7] if len(h) == 9 else h))
-        return (c + (h[7:] if len(h) == 9 else '')) if c else h
-
-    def rg(m):
-        c = conv(tuple(int(m.group(i)) for i in (1, 2, 3)))
-        if not c:
-            return m.group(0)
-        r, g, b = hex_rgb(c)
-        return f'rgba({r}, {g}, {b}, {m.group(4)})' if m.group(4) else f'rgb({r}, {g}, {b})'
-    v = re.sub(r'#[0-9a-fA-F]{3,8}\b', hx, v)
-    v = re.sub(r'rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)', rg, v)
-    return v
-
-
 out = ['/* Généré par tools/gen_dark.py — ne pas modifier à la main. */']
 for m in re.finditer(r'([^{}]+)\{([^{}]*)\}', css[START:]):
     sel, body = m.group(1).strip(), m.group(2)
@@ -150,21 +113,6 @@ for m in re.finditer(r'([^{}]+)\{([^{}]*)\}', css[START:]):
             decls.append('box-shadow: none')
         elif prop in ('-webkit-backdrop-filter', 'backdrop-filter'):
             decls.append(f'{prop}: none')
-        elif prop in ('fill', 'stroke', 'outline', 'outline-color', 'box-shadow', 'text-decoration-color') or prop.startswith('border'):
-            nv = no_red_green(val)
-            if nv != val:
-                decls.append(f'{prop}: {nv}')
-    # couleurs vertes / rouges restantes dans les déclarations retenues
-    decls = [d.split(':', 1)[0] + ': ' + no_red_green(d.split(':', 1)[1].strip()) for d in decls]
-    if not decls:
-        for d in body.split(';'):
-            if ':' in d:
-                prop, val = d.split(':', 1)
-                prop, val = prop.strip(), ' '.join(val.split())
-                if prop in ('background', 'background-color', 'color'):
-                    nv = no_red_green(val)
-                    if nv != val:
-                        decls.append(f'{"background" if prop != "color" else "color"}: {nv}')
     if decls:
         sels = ', '.join(f'{SCOPE} {s.strip()}' for s in sel.split(','))
         out.append(f'{sels} {{ ' + '; '.join(d + ' !important' for d in decls) + '; }')

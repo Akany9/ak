@@ -17,7 +17,6 @@ node tools/build.mjs --exe        # + ../solfegequest-cpp/res/app.html.gz, puis 
 | `src/css/85-edu-dark.css` | équivalents sombres du module Éducation, générés par `tools/gen_dark.py` |
 | `src/css/90-catalina.css` | **thème Catalina / GarageBand sombre** |
 | `src/js/30-home.js` | **accueil en carrousel** façon GarageBand |
-| `src/js/60-ui-scale.js` | **échelle de l'interface** réglable par volet |
 | `src/js/00-app.js` | code d'origine (reformaté ; noms locaux minifiés, noms globaux d'origine) |
 | `src/js/40-score-preview.js` | **aperçu de la note à poser** sur les partitions |
 | `src/js/50-studio-transport.js` | **barre de transport unique et contextuelle** du Studio |
@@ -52,22 +51,3 @@ node tools/build.mjs --exe        # + ../solfegequest-cpp/res/app.html.gz, puis 
 - **Accueil en carrousel** : une grande carte centrée (icône, titre, description, « Entrer ›»), voisines
   visibles, points de pagination, flèches ← → du clavier, et une rangée de raccourcis en icônes qui
   ouvrent directement une section (ex. Studio › Enregistreur, Éducation › Exercices).
-
-## Changements de la v1.7
-
-- **Plus de rouge ni de vert** : accents bleu (Accueil, Studio), orange (Éducation), indigo (Composition) ;
-  couleurs de pistes et de chapitres remplacées (bleu, indigo, violet, orange, graphite — les anciens
-  projets sont convertis à l'ouverture) ; réussite / erreur des exercices en bleu / orange.
-  Le rouge ne subsiste que sur les boutons d'enregistrement.
-- **Échelle réglable** : commande « − 85 % + » dans la barre du haut de chaque volet (clic sur le
-  pourcentage = 100 %, Ctrl+Alt+= / − / 0). La Composition démarre à 85 %.
-- **Icônes de la colonne de gauche plus petites** (pistes, bibliothèque, volets du Studio, programme).
-- **Dégradés** réintroduits dans le thème (fond, barres, cartes, tuiles, boutons, segments, régions),
-  toujours sans effet verre en dehors du Studio et du clavier.
-
-## Changements de la v1.8
-
-- **Pistes de la Composition neutres et allégées** : régions et en-têtes en gris, sans couleur de piste
-  ni dégradé (plus de liseré coloré, icônes grises), pistes moins hautes (62 px au lieu de 84),
-  nom de piste plus petit, boutons M / S / ● / automation et pastilles des curseurs réduits ;
-  les boutons ne se colorent plus (blanc quand actifs, rouge seulement quand la piste est armée).

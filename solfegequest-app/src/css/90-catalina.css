@@ -73,9 +73,9 @@ h3, h4, .disp {
   --bg2: #141416;
   color-scheme: dark;
 }
-#app[data-mode=home] { --accent: #0a84ff; --accent2: #ff9f0a; --accent-soft: rgba(10, 132, 255, .2); --grad-a: #409cff; --grad-b: #0a6fd6; }
-#app[data-mode=edu]  { --accent: #ff9f0a; --accent2: #0a84ff; --accent-soft: rgba(255, 159, 10, .18); --grad-a: #ffb340; --grad-b: #e8790a; }
-#app[data-mode=comp] { --accent: #5e5ce6; --accent2: #0a84ff; --accent-soft: rgba(94, 92, 230, .22); --grad-a: #7d7bff; --grad-b: #4a48c9; }
+#app[data-mode=home] { --accent: #0a84ff; --accent2: #ff9f0a; --accent-soft: rgba(10, 132, 255, .2); }
+#app[data-mode=edu]  { --accent: #30d158; --accent2: #ff9f0a; --accent-soft: rgba(48, 209, 88, .18); }
+#app[data-mode=comp] { --accent: #ff375f; --accent2: #0a84ff; --accent-soft: rgba(255, 55, 95, .2); }
 
 #app[data-mode=studio] {
   --ink: rgba(255, 255, 255, .92);
@@ -193,7 +193,7 @@ h3, h4, .disp {
 #app:not([data-mode=studio]) :is(.btn.pri, .btn.on) { background: var(--accent); color: var(--accent-ink); }
 #app:not([data-mode=studio]) .btn.pri:hover { filter: brightness(1.1); }
 #app:not([data-mode=studio]) .btn.sec { background: var(--accent2); color: #fff; }
-#app:not([data-mode=studio]) .btn.danger { color: #ff9f0a; }
+#app:not([data-mode=studio]) .btn.danger { color: #ff453a; }
 #app:not([data-mode=studio]) .btn.rec.on { background: #ff453a; animation: none; }
 
 /* Contrôle segmenté GarageBand : piste grise, segment choisi gris clair, texte blanc */
@@ -296,9 +296,9 @@ body:not(:has(#app[data-mode=studio])) .menu {
 .mcard:hover { transform: none; box-shadow: none; }
 .mcard .shine { display: none; }
 .mcard[data-m] { --ink: rgba(255, 255, 255, .93); --ink2: rgba(235, 235, 245, .62); --ink3: rgba(235, 235, 245, .38); --glass: transparent; --stroke: transparent; }
-.mcard[data-m=edu] { --accent: #ff9f0a; --tile: #e8790a; --tile2: #ffc14d; }
-.mcard[data-m=studio] { --accent: #0a84ff; --tile: #2c2c2e; --tile2: #6e6e73; }
-.mcard[data-m=comp] { --accent: #5e5ce6; --tile: #3634a3; --tile2: #8583ff; }
+.mcard[data-m=edu] { --accent: #30d158; --tile: #1f9d55; --tile2: #30d158; }
+.mcard[data-m=studio] { --accent: #0a84ff; --tile: #3a3a3c; --tile2: #636366; }
+.mcard[data-m=comp] { --accent: #ff375f; --tile: #d70f45; --tile2: #ff375f; }
 
 .gbtop { display: grid; grid-template-columns: minmax(180px, 42%) 1fr; align-items: center; gap: clamp(16px, 3vw, 48px); min-height: clamp(220px, 34vh, 340px); }
 .cart {
@@ -387,20 +387,21 @@ body:not(:has(#app[data-mode=studio])) .menu {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
-#app[data-mode=comp] :is(.tico, .sm-ico, .cstrip .cico, .tile .ti, .dtxic, .loopc .lp, .chpad, .dstyle.on, .sc.on, .loopband.on, .pitch-side, .pp-read, .pp-k) {
+#app[data-mode=comp] :is(.btn, .tbtn, .seg > button, .modesw button, .etab, .chip, .tchip, .cbody, .clib, .ctool, .lcd, .tico, .sm-ico, .cstrip .cico, .tile .ti, .dtxic, .loopc .lp, .chpad, .dstyle.on, .sc.on, .loopband.on, .pitch-side, .pp-read, .pp-k) {
+  background-image: none !important;
   box-shadow: none !important;
 }
 #app[data-mode=comp] .etab.on { background: var(--seg-on) !important; color: #fff !important; }
 #app[data-mode=comp] .rg {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 88%, #fff 12%), color-mix(in srgb, var(--tc) 72%, #000 28%));
+  background: color-mix(in srgb, var(--tc) 82%, #000 18%);
   border: 1px solid color-mix(in srgb, var(--tc) 60%, #fff 40%);
   border-radius: 6px;
   box-shadow: none;
   color: #fff;
 }
-#app[data-mode=comp] .rg.drm { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .06) 0 6px, transparent 6px 12px), linear-gradient(180deg, color-mix(in srgb, var(--tc) 88%, #fff 12%), color-mix(in srgb, var(--tc) 72%, #000 28%)); }
+#app[data-mode=comp] .rg.drm { background: color-mix(in srgb, var(--tc) 82%, #000 18%); }
 #app[data-mode=comp] .rg.aud { background: color-mix(in srgb, var(--tc) 40%, #1c1c1e 60%); }
-#app[data-mode=comp] :is(.sm-ico, .cstrip .cico, .tile .ti) { background: #3a3a3c !important; border-radius: 7px; }
+#app[data-mode=comp] :is(.tico, .sm-ico, .cstrip .cico, .tile .ti) { background: var(--tc, #636366) !important; border-radius: 8px; }
 #app[data-mode=comp] :is(.cbody, .ed-body) { background: var(--panel); }
 #app[data-mode=comp] .pitch-side { background: var(--side); border-color: var(--sep); }
 #app[data-mode=comp] .pp-read { background: var(--inp) !important; border: 1px solid var(--sep); border-radius: 9px; }
@@ -456,9 +457,9 @@ body:not(:has(#app[data-mode=studio])) .menu {
 #app[data-mode=edu] .edsecs { background: var(--seg); border: 1px solid var(--sep); }
 #app[data-mode=edu] .edsecs button { color: var(--ink); }
 #app[data-mode=edu] .edsecs button.on { background: var(--seg-on) !important; background-image: none !important; box-shadow: none !important; color: #fff !important; }
-#app[data-mode=edu] :is(.qopt.ok, .dans.ok) { background: rgba(10, 132, 255, .28) !important; border-color: #0a84ff !important; }
-#app[data-mode=edu] :is(.qopt.ko, .dans.ko) { background: rgba(255, 159, 10, .24) !important; border-color: #ff9f0a !important; }
-#app[data-mode=edu] .enote.tip { border-left: 3px solid #64d2ff !important; }
+#app[data-mode=edu] :is(.qopt.ok, .dans.ok) { background: rgba(48, 209, 88, .22) !important; }
+#app[data-mode=edu] :is(.qopt.ko, .dans.ko) { background: rgba(255, 69, 58, .22) !important; }
+#app[data-mode=edu] .enote.tip { border-left: 3px solid #30d158 !important; }
 #app[data-mode=edu] .enote.warn { border-left: 3px solid #ff9f0a !important; }
 #app[data-mode=edu] .enote.info { border-left: 3px solid #0a84ff !important; }
 #app[data-mode=edu] .enote.memo { border-left: 3px solid #bf5af2 !important; }
@@ -475,7 +476,7 @@ body:not(:has(#app[data-mode=studio])) .menu {
 .ghost .ghost-col { fill: var(--accent, #0a84ff); stroke: none; opacity: .1; }
 .ghost .ghost-ledger { stroke-width: 1.1; }
 .ghost .ghost-stem { stroke-linecap: round; }
-.ghost.bad { color: #ff9f0a; }
+.ghost.bad { color: #ff3b30; }
 .ghost-tip {
   position: fixed;
   z-index: 9999;
@@ -496,7 +497,7 @@ body:not(:has(#app[data-mode=studio])) .menu {
 .ghost-tip.on { opacity: 1; transform: none; }
 .ghost-tip b { font-weight: 600; }
 .ghost-tip span { color: rgba(255, 255, 255, .7); }
-.ghost-tip.bad span { color: #ffc56b; }
+.ghost-tip.bad span { color: #ff8a80; }
 
 /* Feuilles de papier (portées, outils, exercices) : restent blanches, avec une encre foncée */
 #app:not([data-mode=studio]) .paper {
@@ -521,136 +522,3 @@ body:not(:has(#app[data-mode=studio])) .menu {
 #app:not([data-mode=studio]) .paper .btn:not(.pri):not(.on) { color: rgba(0, 0, 0, .86); }
 #app[data-mode=edu] .paper :is(.chip, .fchip, .qopt, .dans, .gtile, .tile) { background: #f2f2f7 !important; color: rgba(0, 0, 0, .86) !important; border-color: rgba(0, 0, 0, .1) !important; }
 #app[data-mode=edu] .paper :is(h1, h2, h3, h4, b, strong) { color: #000; }
-
-/* =====================================================================
-   v1.7 — Dégradés du thème (sans verre) et icônes de gauche plus petites
-   ===================================================================== */
-#app:not([data-mode=studio]) .bgs {
-  background:
-    radial-gradient(110% 70% at 50% -10%, color-mix(in srgb, var(--accent) 10%, #26262b) 0%, transparent 60%),
-    linear-gradient(180deg, #19191c 0%, #121214 100%);
-}
-#app:not([data-mode=studio]) .topbar { background: linear-gradient(180deg, #1f1f22, #17171a); }
-#app:not([data-mode=studio]) .ctool { background: linear-gradient(180deg, #202023, #1a1a1d); }
-#app:not([data-mode=studio]) .glass { background: linear-gradient(180deg, #2a2a2d, #232325); }
-#app:not([data-mode=studio]) :is(.clib, .edrail) { background: linear-gradient(180deg, #212124, #1b1b1d); }
-#app:not([data-mode=studio]) .btn { background: linear-gradient(180deg, #48484b, #3a3a3c); }
-#app:not([data-mode=studio]) .btn:hover { background: linear-gradient(180deg, #535356, #444446); }
-#app:not([data-mode=studio]) .btn.ghost, .btn.backbtn { background: transparent; }
-#app:not([data-mode=studio]) .btn.ghost:hover { background: rgba(255, 255, 255, .08); }
-#app:not([data-mode=studio]) :is(.btn.pri, .btn.on, .tbtn.on) {
-  background: linear-gradient(180deg, var(--grad-a, var(--accent)), var(--grad-b, var(--accent)));
-  color: #fff;
-}
-#app:not([data-mode=studio]) .tbtn { background: linear-gradient(180deg, #48484b, #3a3a3c); }
-#app:not([data-mode=studio]) :is(.seg > button.on, .modesw button.on),
-.scored-ov .seg > button.on { background: linear-gradient(180deg, #727277, #58585d) !important; }
-#app:not([data-mode=studio]) .lcd { background: linear-gradient(180deg, #0f0f11, #08080a); }
-#app[data-mode=edu] :is(.edhero, .chcard, .dcard, .gcat, .equiz, .erc, .eri) { background: linear-gradient(180deg, #2b2b2e, #232326) !important; }
-#app[data-mode=edu] .edhero { background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 22%, #2b2b2e), #232326 65%) !important; }
-#app[data-mode=edu] :is(.chi, .dci, .eri.on .eric, .erc.open .eric) {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--cc, var(--accent)) 70%, #fff 30%), var(--cc, var(--accent))) !important;
-}
-#app[data-mode=edu] .erl.on .erk { background: var(--cc, var(--accent)); }
-
-/* Accueil : cartes et tuiles en dégradé, façon GarageBand */
-.mcard { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, #2b2b2e) 0%, #262628 45%, #202022 100%); }
-.cart .cicon { background: linear-gradient(160deg, var(--tile2), var(--tile)); box-shadow: 0 18px 40px -18px color-mix(in srgb, var(--tile) 70%, #000), inset 0 1px rgba(255, 255, 255, .18); }
-.hero .logo { background: linear-gradient(160deg, #5eb0ff, #0a6fd6); }
-.gbsc { border-top-color: rgba(255, 255, 255, .08); }
-
-/* Icônes de la colonne de gauche plus petites */
-.tico, #app[data-mode=comp] .tico { width: 26px !important; height: 26px !important; border-radius: 7px !important; font-size: .85rem; }
-.tico .ic { width: 15px; height: 15px; }
-.strb .si { width: 28px !important; height: 28px !important; flex: 0 0 28px; }
-.strb .si .ic { width: 16px; height: 16px; }
-:is(.eri, .erc) :is(.eric) { width: 28px !important; height: 28px !important; flex: 0 0 28px !important; border-radius: 8px !important; }
-:is(.eri, .erc) .eric .ic { width: 15px; height: 15px; }
-.libcats { grid-template-columns: repeat(9, 1fr) !important; gap: 3px !important; }
-.libcats button { width: auto !important; height: 26px !important; min-width: 0 !important; }
-.libcats .ic { width: 14px; height: 14px; }
-.clib :is(.lsi, .lib-ic, .li .ic, .lpi) { width: 18px; height: 18px; }
-
-/* Commande d'échelle (barre du haut) */
-.uiscale {
-  display: inline-flex; align-items: center; gap: 2px;
-  padding: 2px; border-radius: 8px;
-  background: rgba(255, 255, 255, .06);
-  border: 1px solid rgba(255, 255, 255, .08);
-  font-family: var(--f-display);
-}
-.uiscale button { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--ink2); }
-.uiscale button:hover { background: rgba(255, 255, 255, .1); color: var(--ink); }
-.uiscale .ic { width: 14px; height: 14px; }
-.uiscale b { min-width: 46px; text-align: center; font-size: .78rem; font-weight: 600; color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums; }
-@media (max-width: 900px) { .uiscale b { min-width: 38px; } }
-#app[data-mode=comp] { --accent-fg: #9d9bff; }
-#app[data-mode=edu] { --accent-fg: #ffb340; }
-
-/* =====================================================================
-   v1.8 — Pistes de la Composition : neutres, sans couleur ni dégradé, allégées
-   ===================================================================== */
-#app[data-mode=comp] .trow { height: 62px; }
-#app[data-mode=comp] .trow.arow { height: 52px; }
-#app[data-mode=comp] .thead {
-  background: #1c1c1e;
-  padding: 5px 10px 5px 10px;
-  gap: 2px 7px;
-  grid-template-columns: 20px minmax(0, 1fr);
-}
-#app[data-mode=comp] .trow.sel .thead { background: #2a2a2d; }
-#app[data-mode=comp] .trow.sel .lane { background-color: rgba(255, 255, 255, .025); }
-#app[data-mode=comp] .thead .tcol { display: none; }
-#app[data-mode=comp] .thead .tico {
-  width: 20px !important; height: 20px !important; border-radius: 5px !important;
-  background: #3a3a3c !important; color: rgba(235, 235, 245, .75);
-  box-shadow: none !important; font-size: .7rem;
-}
-#app[data-mode=comp] .thead .tico .ic { width: 12px; height: 12px; }
-#app[data-mode=comp] .tname { font-size: .74rem; font-weight: 500; color: rgba(235, 235, 245, .86); letter-spacing: 0; }
-#app[data-mode=comp] .trow.sel .tname { color: #fff; }
-#app[data-mode=comp] .tbtns { gap: 3px; }
-#app[data-mode=comp] .tbtns button {
-  width: 17px; height: 15px; border-radius: 4px;
-  font-size: .55rem; font-weight: 600;
-  background: transparent; border: 1px solid rgba(255, 255, 255, .14);
-  color: rgba(235, 235, 245, .6); box-shadow: none;
-}
-#app[data-mode=comp] .tbtns .ic { width: .85em; height: .85em; }
-#app[data-mode=comp] .tbtns .rb { color: rgba(235, 235, 245, .5); }
-#app[data-mode=comp] .tbtns :is(.mb.on, .sb.on, .ab.on) { background: #e5e5ea; color: #1c1c1e; border-color: transparent; }
-#app[data-mode=comp] .tbtns .rb.on { background: #ff453a; color: #fff; border-color: transparent; }
-
-/* curseurs de la Composition : fins, pastille réduite, sans couleur */
-#app[data-mode=comp] input[type=range] { height: 14px; }
-#app[data-mode=comp] input[type=range]::-webkit-slider-runnable-track {
-  height: 3px; border-radius: 3px; box-shadow: none;
-  background: linear-gradient(90deg, rgba(235, 235, 245, .55) var(--p, 50%), rgba(255, 255, 255, .12) var(--p, 50%));
-}
-#app[data-mode=comp] input[type=range]::-webkit-slider-thumb {
-  width: 11px; height: 11px; margin-top: -4px;
-  background: #e5e5ea; box-shadow: 0 1px 2px rgba(0, 0, 0, .5);
-}
-#app[data-mode=comp] input[type=range]::-moz-range-track { height: 3px; background: rgba(255, 255, 255, .12); }
-#app[data-mode=comp] input[type=range]::-moz-range-progress { height: 3px; background: rgba(235, 235, 245, .55); }
-#app[data-mode=comp] input[type=range]::-moz-range-thumb { width: 11px; height: 11px; background: #e5e5ea; }
-#app[data-mode=comp] .thead .tvol { height: 12px; }
-
-/* régions : gris neutre, à plat */
-#app[data-mode=comp] .rg,
-#app[data-mode=comp] .rg.drm,
-#app[data-mode=comp] .rg.aud {
-  background: #3a3a3d;
-  background-image: none;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 5px;
-  box-shadow: none;
-  color: rgba(235, 235, 245, .9);
-  top: 5px; bottom: 5px;
-}
-#app[data-mode=comp] .rg.aud { background: #2f2f32; }
-#app[data-mode=comp] .rg.sel,
-#app[data-mode=comp] .rg.on { background: #4a4a4e; border-color: rgba(255, 255, 255, .55); }
-#app[data-mode=comp] .rg :is(.rgn, .rgname, b, .rgt) { font-size: .66rem; font-weight: 500; }
-#app[data-mode=comp] .rg .rgl { font-size: .62rem; font-weight: 500; top: 2px; left: 6px; color: rgba(235, 235, 245, .8); }
-#app[data-mode=comp] .rg.sel { outline: 1px solid rgba(255, 255, 255, .7); outline-offset: 0; box-shadow: none; }

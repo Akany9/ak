@@ -39,7 +39,9 @@ std::string posLabel(const Project& P, double beat) {
     char buf[48];
     if (std::fabs(b - std::round(b)) < 1e-3) std::snprintf(buf, sizeof buf, "mesure %d, temps %d", bar + 1, int(std::lround(b)));
     else std::snprintf(buf, sizeof buf, "mesure %d, temps %.2g", bar + 1, b);
-    return buf;
+    std::string r = buf;
+    for (auto& c : r) if (c == '.') c = ',';   // virgule décimale
+    return r;
 }
 
 ImU32 trackColor(const Track& t) { return t.colorSet ? hexColor(t.color) : col::neutral; }
@@ -987,6 +989,9 @@ void App::mixerPanel(bool large) {
     float stripW = 84 * s, h = ImGui::GetContentRegionAvail().y;
     ImGui::BeginChild("##strips", ImVec2(0, h), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
     float sh = std::max(220 * s, ImGui::GetContentRegionAvail().y - 4 * s);
+    ImVec2 origin = ImGui::GetCursorScreenPos();
+    int slot = 0;
+    auto place = [&](float extra) { ImGui::SetCursorScreenPos(ImVec2(origin.x + slot * (stripW + 6 * s) + extra, origin.y)); ++slot; };
     auto strip = [&](int idx, const char* name, const char* icon, ImU32 color, bool colored, float* vol, float* pan, bool* mute, bool* solo, float level, bool sel) {
         ImGui::PushID(idx);
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -1038,19 +1043,20 @@ void App::mixerPanel(bool large) {
     for (size_t i = 0; i < P.tracks.size(); ++i) {
         Track t = P.tracks[i];
         std::string tid = t.id;
+        place(0);
         bool ch = strip(int(i), t.name.c_str(), catalog().icon(t.inst), trackColor(t), t.colorSet, &t.vol, &t.pan, &t.mute, &t.solo,
                         audio().trackLevel(int(i)), doc.selTrack == t.id);
         if (ch) doc.editCoalesced("mix" + tid + std::to_string(int(ImGui::GetActiveID())), [&](Project& Q) {
             if (Track* tr = Q.track(tid)) { tr->vol = t.vol; tr->pan = t.pan; tr->mute = t.mute; tr->solo = t.solo; }
         });
-        ImGui::SameLine(0, 0);
     }
-    ImGui::Dummy(ImVec2(16 * s, 1));
-    ImGui::SameLine(0, 0);
+    place(16 * s);
     float mv = P.masterVol;
     if (strip(999, "Général", ICON_SPEAKER, 0, false, &mv, nullptr, nullptr, nullptr, std::max(audio().masterLevel(0), audio().masterLevel(1)), false))
         doc.editCoalesced("master", [&](Project& Q) { Q.masterVol = mv; });
     if (!ImGui::IsAnyItemActive()) doc.endCoalesce();
+    ImGui::SetCursorScreenPos(ImVec2(origin.x + slot * (stripW + 6 * s) + 16 * s, origin.y));
+    ImGui::Dummy(ImVec2(1, sh));
     ImGui::EndChild();
 }
 
@@ -1205,11 +1211,24 @@ void App::chordsPanel() {
     ImGui::NewLine();
     const char* styles[] = {"Plaqués", "Arpèges", "Pop (rythmé)"};
     ImGui::SetNextItemWidth(150 * s);
-    ImGui::Combo("Jeu", &style, styles, 3);
-    ImGui::SetNextItemWidth(150 * s);
-    ImGui::SliderInt("Mesures / accord", &barsPer, 1, 2);
-    ImGui::SetNextItemWidth(150 * s);
-    ImGui::SliderInt("Octave", &octave, 3, 5);
+    ImGui::Combo("##jeu", &style, styles, 3);
+    tooltip("Façon de jouer les accords");
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Durée");
+    ImGui::SameLine();
+    if (pillButton("1 mesure", barsPer == 1)) barsPer = 1;
+    ImGui::SameLine(0, 2);
+    if (pillButton("2 mesures", barsPer == 2)) barsPer = 2;
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Octave");
+    ImGui::SameLine();
+    for (int o2 = 3; o2 <= 5; ++o2) {
+        ImGui::PushID(o2);
+        if (pillButton(std::to_string(o2).c_str(), octave == o2)) octave = o2;
+        ImGui::PopID();
+        ImGui::SameLine(0, 2);
+    }
+    ImGui::NewLine();
     ImGui::Checkbox("Ajouter une basse", &withBass);
     if (ImGui::Button(ICON_ZAP "  Créer l'accompagnement à la tête de lecture")) {
         double bb = P.barBeats(), at = snapDown(audio().position(), bb);

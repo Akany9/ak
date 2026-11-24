@@ -19,6 +19,9 @@
 
 using namespace sq;
 
+struct Click { float x, y; int frame; bool right; };
+static std::vector<Click> gClicks;
+
 static void runTest(const std::string& script, ImVec2* hover) {
     std::stringstream ss(script);
     std::string cmd;
@@ -52,6 +55,12 @@ static void runTest(const std::string& script, ImVec2* hover) {
         if (k == "hover") {
             auto c = v.find(',');
             *hover = ImVec2(float(std::atof(v.substr(0, c).c_str())), float(std::atof(v.substr(c + 1).c_str())));
+        }
+        if (k == "click" || k == "rclick") {  // click=x,y[,décalage en cadres]
+            float x, y;
+            int df = 0;
+            std::sscanf(v.c_str(), "%f,%f,%d", &x, &y, &df);
+            gClicks.push_back({x, y, df, k == "rclick"});
         }
         if (k == "scale") theme().setUserScale(float(std::atof(v.c_str())));
         if (k == "play") audio().play();
@@ -100,6 +109,12 @@ int main() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         if (hover.x >= 0) io.AddMousePosEvent(hover.x, hover.y);
+        for (auto& c : gClicks) {  // déplacement, appui, relâchement sur des cadres successifs
+            int t = frame - 3 - c.frame;
+            if (t == 1) io.AddMousePosEvent(c.x, c.y);
+            if (t == 2) io.AddMouseButtonEvent(c.right ? 1 : 0, true);
+            if (t == 3) io.AddMouseButtonEvent(c.right ? 1 : 0, false);
+        }
         ImGui::NewFrame();
         a.frame();
         ImGui::Render();
@@ -111,6 +126,15 @@ int main() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         ++frame;
         if (test && frame == 3) runTest(test, &hover);
+        if (std::getenv("SQ_LEVELS") && frame % 20 == 0)
+            std::fprintf(stderr, "niveau cadre %d : pos=%.2f lecture=%d G=%.3f D=%.3f piste0=%.3f piste4=%.3f (%s)\n", frame, audio().position(), audio().playing(),
+                         audio().masterLevel(0), audio().masterLevel(1), audio().trackLevel(0), audio().trackLevel(4), audio().backendName().c_str());
+        if (shot && frame == frames && std::getenv("SQ_DUMP")) {
+            Region* r = a.doc.selRegion.empty() ? nullptr : a.doc.P.region(a.doc.selRegion);
+            std::fprintf(stderr, "ETAT pistes=%zu region=%s notes=%zu annulable=%d visibles=%d%d%d%d%d%d flottant(pianoRoll)=%d\n", a.doc.P.tracks.size(),
+                         a.doc.selRegion.c_str(), r ? r->notes.size() : 0, a.doc.canUndo(), a.panels.p[0].visible, a.panels.p[1].visible, a.panels.p[2].visible,
+                         a.panels.p[3].visible, a.panels.p[4].visible, a.panels.p[5].visible, a.panels.p[1].floating);
+        }
         if (shot && frame == frames) {
             std::vector<unsigned char> px(size_t(dw) * dh * 3);
             glPixelStorei(GL_PACK_ALIGNMENT, 1);

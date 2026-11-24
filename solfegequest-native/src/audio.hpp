@@ -38,6 +38,9 @@ public:
 
     // Prévisualisation (clic sur une note, clavier…)
     void audition(const std::string& inst, int midi, int vel, double seconds, int trackIndex = -1);
+    // Notes tenues (piano flottant) : jouée jusqu'au relâchement
+    void liveOn(const std::string& inst, int midi, int vel, int trackIndex = -1);
+    void liveOff(int midi);
 
     // Niveaux crête (0–1+) pour les vumètres
     float masterLevel(int ch) const { return master_[ch].load(); }
@@ -48,7 +51,7 @@ public:
 private:
     struct Voice;
     void startNote(const Snapshot& s, int track, const std::string& inst, int midi, int vel, double durBeats,
-                   double durSeconds, uint32_t delay, float bpm);
+                   double durSeconds, uint32_t delay, float bpm, int liveTag = -1);
     void click(bool accent, uint32_t delay);
 
     std::shared_ptr<const Snapshot> snap_;
@@ -57,7 +60,7 @@ private:
     std::atomic<double> pos_{0};
     std::atomic<double> seekTo_{-1};
 
-    struct Pending { std::string inst; int midi, vel; double sec; int track; };
+    struct Pending { std::string inst; int midi, vel; double sec; int track; int op = 0; };  // op : 0 note, 1 appui, 2 relâchement
     std::vector<Pending> pending_;
     std::mutex pendMu_;
 

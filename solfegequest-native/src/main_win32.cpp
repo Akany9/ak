@@ -16,6 +16,12 @@
 
 using namespace sq;
 
+// Disposition AZERTY (France, Belgique, Suisse romande…) : le piano flottant adapte ses touches
+static bool detectAzerty() {
+    LANGID l = LOWORD(reinterpret_cast<uintptr_t>(GetKeyboardLayout(0)));
+    return PRIMARYLANGID(l) == LANG_FRENCH && SUBLANGID(l) != SUBLANG_FRENCH_CANADIAN;
+}
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 static ID3D11Device* gDev = nullptr;
@@ -79,6 +85,7 @@ static LRESULT WINAPI wndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             mm->ptMinTrackSize = {960, 600};
             return 0;
         }
+        case WM_INPUTLANGCHANGE: sq::app().azerty = detectAzerty(); break;
         case WM_DPICHANGED: {
             float user = theme().scale / std::max(0.5f, theme().dpi);
             theme().dpi = float(HIWORD(wParam)) / 96.f;
@@ -149,6 +156,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     App& a = app();
     a.setTitle = [hwnd](const char* t) { SetWindowTextW(hwnd, widen(t).c_str()); };
     a.init();
+    a.azerty = detectAzerty();
     skeuo::createTexture = [](const unsigned* px, int w, int h) -> ImTextureID {
         D3D11_TEXTURE2D_DESC d{};
         d.Width = UINT(w);

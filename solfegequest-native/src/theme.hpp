@@ -47,5 +47,7 @@ bool iconButton(const char* id, const char* icon, const char* tip, bool active =
 bool pillButton(const char* label, bool active, const char* tip = nullptr);
 void tooltip(const char* text);
 void sectionLabel(const char* text);
+// Texte centré (lignes coupées à « wrap » pixels, chacune centrée sur cx) ; renvoie la hauteur occupée.
+float centeredText(ImDrawList* dl, ImFont* font, float size, float cx, float y, float wrap, ImU32 col, const char* text);
 
 }  // namespace sq

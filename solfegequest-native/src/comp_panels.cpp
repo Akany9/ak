@@ -1024,46 +1024,40 @@ void App::mixerPanel(bool large) {
     // joues en bois
     ImVec2 w0 = origin, w1(origin.x + cheek, origin.y + sh);
     ImVec2 w2(origin.x + totalW - cheek, origin.y), w3(origin.x + totalW, origin.y + sh);
-    for (auto [a, b] : {std::pair{w0, w1}, std::pair{w2, w3}}) {
-        skeuo::material(dl, skeuo::Mat::Wood, a, b, col::rgb(120, 92, 70), 4 * s, s);
-        dl->AddRectFilledMultiColor(a, b, IM_COL32(255, 255, 255, 30), IM_COL32(0, 0, 0, 60), IM_COL32(0, 0, 0, 60), IM_COL32(255, 255, 255, 30));
-        dl->AddRect(a, b, IM_COL32(0, 0, 0, 160), 4 * s);
-    }
+    // embouts en aluminium anodisé sombre
+    for (auto [a, b] : {std::pair{w0, w1}, std::pair{w2, w3}}) skeuo::surface(dl, a, b, 5 * s, col::rgb(46, 46, 51), col::rgb(28, 28, 31), 0.6f);
 
     auto strip = [&](int idx, float x, const char* name, const char* icon, bool colored, ImU32 color, float* vol, float* pan, bool* mute, bool* solo,
                      float level, bool sel) {
         ImGui::PushID(idx);
         ImVec2 a(x, origin.y), b(x + stripW, origin.y + sh);
         // plaque
-        skeuo::material(dl, skeuo::Mat::Brushed, a, b, sel ? col::rgb(118, 118, 126) : col::rgb(96, 96, 102), 3 * s, s);
-        dl->AddRectFilledMultiColor(a, b, IM_COL32(255, 255, 255, 26), IM_COL32(255, 255, 255, 26), IM_COL32(0, 0, 0, 70), IM_COL32(0, 0, 0, 70));
-        dl->AddRect(a, b, IM_COL32(0, 0, 0, 190), 3 * s);
-        dl->AddLine(ImVec2(a.x + 1, a.y + 1), ImVec2(a.x + 1, b.y - 1), IM_COL32(255, 255, 255, 40));
-        skeuo::screw(dl, ImVec2(a.x + 7 * s, a.y + 7 * s), 2.4f * s);
-        skeuo::screw(dl, ImVec2(b.x - 7 * s, a.y + 7 * s), 2.4f * s);
-        skeuo::screw(dl, ImVec2(a.x + 7 * s, b.y - 7 * s), 2.4f * s);
-        skeuo::screw(dl, ImVec2(b.x - 7 * s, b.y - 7 * s), 2.4f * s);
-        // étiquette papier (« scribble strip »), avec la couleur facultative de la piste en liseré
-        ImVec2 l0(a.x + 8 * s, a.y + 15 * s), l1(b.x - 8 * s, a.y + 34 * s);
-        skeuo::material(dl, skeuo::Mat::Paper, l0, l1, col::rgb(242, 236, 220), 2 * s, 0.5f);
-        dl->AddRect(l0, l1, IM_COL32(0, 0, 0, 120), 2 * s);
-        if (colored) dl->AddRectFilled(ImVec2(l0.x, l1.y - 3 * s), ImVec2(l1.x, l1.y), color, 0);
-        ImGui::PushFont(theme().f.small);
-        ImGui::PushClipRect(l0, l1, true);
-        dl->AddText(ImVec2(l0.x + 4 * s, l0.y + 2 * s), col::rgb(40, 38, 34), icon);
-        dl->AddText(ImVec2(l0.x + 20 * s, l0.y + 2 * s), col::rgb(40, 38, 34), name);
-        ImGui::PopClipRect();
-        ImGui::PopFont();
+        // tranche : aluminium anodisé (surface convexe + stries très fines)
+        skeuo::surface(dl, a, b, 7 * s, sel ? col::rgb(74, 74, 80) : col::rgb(62, 62, 67), col::rgb(40, 40, 44), 0.7f);
+        skeuo::material(dl, skeuo::Mat::Brushed, a, b, IM_COL32(255, 255, 255, 18), 7 * s, s);
+        // étiquette creusée, nom centré ; couleur facultative de la piste en liseré
+        ImVec2 l0(a.x + 7 * s, a.y + 9 * s), l1(b.x - 7 * s, a.y + 30 * s);
+        skeuo::well(dl, l0, l1, 5 * s);
+        if (colored) dl->AddRectFilled(ImVec2(l0.x + 4 * s, l1.y - 3 * s), ImVec2(l1.x - 4 * s, l1.y - 1.5f * s), color, 1);
+        {
+            ImFont* sf = theme().f.small;
+            std::string lab = std::string(icon) + " " + name;
+            ImVec2 tsz = sf->CalcTextSizeA(sf->FontSize, FLT_MAX, 0, lab.c_str());
+            float tx = tsz.x < l1.x - l0.x - 8 * s ? std::round((l0.x + l1.x - tsz.x) / 2) : l0.x + 4 * s;
+            ImGui::PushClipRect(ImVec2(l0.x + 2 * s, l0.y), ImVec2(l1.x - 2 * s, l1.y), true);
+            dl->AddText(sf, sf->FontSize, ImVec2(tx, std::round((l0.y + l1.y - tsz.y) / 2)), sel ? IM_COL32_WHITE : col::rgb(225, 225, 232), lab.c_str());
+            ImGui::PopClipRect();
+        }
         bool changed = false;
         // panoramique
         float kr = 19 * s;
         if (pan) {
-            ImGui::SetCursorScreenPos(ImVec2(a.x + stripW / 2 - kr, a.y + 42 * s));
-            changed |= skeuo::knob("pan", pan, -1, 1, kr, "Panoramique (glisser ; double-clic : centre)", 0);
-            ImGui::PushFont(theme().f.small);
+            ImGui::SetCursorScreenPos(ImVec2(std::round(a.x + stripW / 2 - kr), a.y + 38 * s));
+            changed |= skeuo::knob("pan", pan, -1, 1, kr, "Panoramique (glisser ; double-clic : centre)", 0, true);
+            ImFont* sf = theme().f.small;
             const char* pl = *pan < -0.02f ? "G" : *pan > 0.02f ? "D" : "C";
-            dl->AddText(ImVec2(a.x + stripW / 2 - 3 * s, a.y + 42 * s + kr * 2), col::rgb(230, 230, 236, 200), pl);
-            ImGui::PopFont();
+            ImVec2 psz = sf->CalcTextSizeA(sf->FontSize, FLT_MAX, 0, pl);
+            dl->AddText(sf, sf->FontSize, ImVec2(std::round(a.x + (stripW - psz.x) / 2), std::round(a.y + 40 * s + kr * 2)), col::rgb(230, 230, 236, 200), pl);
         }
         // fader + vumètre
         float fy = a.y + 100 * s, fh = sh - (fy - a.y) - 50 * s;

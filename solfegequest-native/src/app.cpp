@@ -10,6 +10,7 @@
 #include "icons.hpp"
 #include "resource_ids.h"
 #include "skeuo.hpp"
+#include "svgicons.hpp"
 #include "theme.hpp"
 #include "util.hpp"
 
@@ -144,6 +145,7 @@ void App::shortcuts() {
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) saveProject(shift);
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) openProject();
     if (ctrl && ImGui::IsKeyPressed(ImGuiKey_N, false)) newProject();
+    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_K, false)) piano.open = !piano.open;
     if (ctrl && io.KeyAlt) {
         float& s = gScale[int(mode)];
         float old = s;
@@ -181,6 +183,7 @@ void App::frame() {
         case Mode::Comp: compScreen(); break;
     }
     trackColorPopup();
+    pianoWindow();
     drawToast();
 
     // sauvegardes automatiques (projet + espace de travail)
@@ -246,8 +249,9 @@ static void beginRoot(const char* name) {
     // fond : léger halo bleuté en haut, dégradé vers le noir
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 a = vp->WorkPos, b(vp->WorkPos.x + vp->WorkSize.x, vp->WorkPos.y + vp->WorkSize.y);
-    skeuo::material(dl, skeuo::Mat::Linen, a, b, col::rgb(46, 46, 50), 0, theme().scale);   // lin sombre (iOS 6)
-    dl->AddRectFilledMultiColor(a, b, col::rgb(40, 52, 72, 70), col::rgb(40, 52, 72, 70), col::rgb(0, 0, 0, 150), col::rgb(0, 0, 0, 150));
+    // fond lisse : dégradé profond + grain très fin
+    dl->AddRectFilledMultiColor(a, b, col::rgb(34, 36, 42), col::rgb(34, 36, 42), col::rgb(16, 16, 19), col::rgb(16, 16, 19));
+    skeuo::material(dl, skeuo::Mat::Grain, a, b, IM_COL32(255, 255, 255, 7), 0, theme().scale);
 }
 
 void App::topBar(const char* title, const char* icon) {
@@ -256,8 +260,8 @@ void App::topBar(const char* title, const char* icon) {
     ImVec2 p0 = ImGui::GetCursorScreenPos();
     float h = 50 * s;
     ImVec2 p1(p0.x + ImGui::GetContentRegionAvail().x, p0.y + h);
-    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(70, 70, 76), 0, s);
-    dl->AddRectFilledMultiColor(p0, p1, col::rgb(255, 255, 255, 18), col::rgb(255, 255, 255, 18), col::rgb(0, 0, 0, 60), col::rgb(0, 0, 0, 60));
+    dl->AddRectFilledMultiColor(p0, p1, col::rgb(50, 50, 55), col::rgb(50, 50, 55), col::rgb(38, 38, 42), col::rgb(38, 38, 42));
+    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(255, 255, 255, 28), 0, s);
     dl->AddLine(ImVec2(p0.x, p0.y), ImVec2(p1.x, p0.y), col::rgb(255, 255, 255, 40));
     dl->AddLine(ImVec2(p0.x, p1.y - 1), ImVec2(p1.x, p1.y - 1), col::rgb(0, 0, 0, 200));
     ImGui::SetCursorScreenPos(ImVec2(p0.x + 12 * s, p0.y + (h - ImGui::GetFrameHeight()) / 2));
@@ -315,9 +319,14 @@ void App::topBar(const char* title, const char* icon) {
     ImGui::PushFont(theme().f.small);
     for (int i = 0; i < 3; ++i) wMode += ImGui::CalcTextSize(names[i]).x + ImGui::CalcTextSize(icons[i]).x + 34 * s;
     ImGui::PopFont();
-    float wScale = 120 * s;
+    float wScale = 120 * s + ImGui::GetFrameHeight() + 14 * s;
     float right = p1.x - 12 * s - wMode - wScale - 12 * s;
     ImGui::SameLine(std::max(ImGui::GetCursorPosX(), right - ImGui::GetWindowPos().x));
+    // piano flottant
+    if (skeuo::glossButton("pianobtn", ICON_PIANO, piano.open, ImVec2(ImGui::GetFrameHeight() + 6 * s, ImGui::GetFrameHeight()), false,
+                           piano.open ? "Fermer le piano flottant (Ctrl+K)" : "Ouvrir le piano flottant (Ctrl+K)"))
+        piano.open = !piano.open;
+    ImGui::SameLine(0, 10 * s);
     // échelle
     {
         float& sc = gScale[int(mode)];
@@ -363,14 +372,10 @@ void App::transportBar(bool full) {
     ImVec2 p0 = ImGui::GetCursorScreenPos();
     float h = 58 * s;
     ImVec2 p1(p0.x + ImGui::GetContentRegionAvail().x, p0.y + h);
-    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(88, 88, 94), 0, s);
-    dl->AddRectFilledMultiColor(p0, p1, col::rgb(255, 255, 255, 22), col::rgb(255, 255, 255, 22), col::rgb(0, 0, 0, 80), col::rgb(0, 0, 0, 80));
+    dl->AddRectFilledMultiColor(p0, p1, col::rgb(58, 58, 63), col::rgb(58, 58, 63), col::rgb(42, 42, 46), col::rgb(42, 42, 46));
+    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(255, 255, 255, 34), 0, s);
     dl->AddLine(ImVec2(p0.x, p0.y), ImVec2(p1.x, p0.y), col::rgb(255, 255, 255, 45));
     dl->AddLine(ImVec2(p0.x, p1.y - 1), ImVec2(p1.x, p1.y - 1), col::rgb(0, 0, 0, 220));
-    skeuo::screw(dl, ImVec2(p0.x + 7 * s, p0.y + 8 * s), 2.6f * s);
-    skeuo::screw(dl, ImVec2(p0.x + 7 * s, p1.y - 9 * s), 2.6f * s);
-    skeuo::screw(dl, ImVec2(p1.x - 7 * s, p0.y + 8 * s), 2.6f * s);
-    skeuo::screw(dl, ImVec2(p1.x - 7 * s, p1.y - 9 * s), 2.6f * s);
     float bh = ImGui::GetFrameHeight() + 2 * s;
     ImGui::SetCursorScreenPos(ImVec2(p0.x + 18 * s, p0.y + (h - bh) / 2));
     ImVec2 sq(bh, bh);
@@ -575,7 +580,7 @@ void App::eduScreen() {
     ImGui::PopStyleColor();
     ImGui::Dummy(ImVec2(1, 10 * s));
     auto& chs = catalog().chapters;
-    float cw = 300 * s, ch = 132 * s, gap = 14 * s;
+    float cw = 300 * s, ch = 140 * s, gap = 16 * s;
     int cols = std::max(1, int((ImGui::GetContentRegionAvail().x + gap) / (cw + gap)));
     cw = (ImGui::GetContentRegionAvail().x - gap * (cols - 1)) / cols;
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -585,22 +590,20 @@ void App::eduScreen() {
     for (size_t i = 0; i < chs.size(); ++i) {
         if (i % size_t(cols)) ImGui::SameLine(0, gap);
         ImVec2 a = ImGui::GetCursorScreenPos(), b(a.x + cw, a.y + ch);
-        skeuo::dropShadow(dl, a, b, 12 * s, 10 * s, 0.8f);
-        skeuo::material(dl, skeuo::Mat::Leather, a, b, col::rgb(70, 68, 68), 12 * s, s);
-        dl->AddRectFilledMultiColor(a, b, IM_COL32(255, 255, 255, 22), IM_COL32(255, 255, 255, 22), IM_COL32(0, 0, 0, 70), IM_COL32(0, 0, 0, 70));
-        skeuo::stitches(dl, a, b, 12 * s, 6 * s, col::rgb(214, 204, 186, 170));
-        dl->AddRect(a, b, IM_COL32(0, 0, 0, 160), 12 * s);
+        skeuo::surface(dl, a, b, 14 * s, col::rgb(56, 56, 61), col::rgb(40, 40, 44));
         ImU32 t = tints[i % 11];
-        skeuo::glossTile(dl, ImVec2(a.x + 16 * s, a.y + 16 * s), ImVec2(a.x + 48 * s, a.y + 48 * s), mixColor(t, IM_COL32(255, 255, 255, 255), 0.3f), t, 8 * s);
-        ImGui::PushFont(theme().f.bold);
-        dl->AddText(ImVec2(a.x + 24 * s, a.y + 23 * s), IM_COL32_WHITE, std::to_string(i + 1).c_str());
-        dl->AddText(ImVec2(a.x + 14 * s, a.y + 56 * s), col::ink, chs[i].name.c_str());
-        ImGui::PopFont();
-        ImGui::PushFont(theme().f.small);
-        dl->AddText(nullptr, 0, ImVec2(a.x + 14 * s, a.y + 80 * s), col::ink2, chs[i].desc.c_str(), nullptr, cw - 28 * s);
+        float cx = std::round(a.x + cw / 2), bs = 34 * s;
+        skeuo::glossTile(dl, ImVec2(cx - bs / 2, a.y + 14 * s), ImVec2(cx + bs / 2, a.y + 14 * s + bs), mixColor(t, IM_COL32(255, 255, 255, 255), 0.3f), t, 9 * s);
+        ImFont* bf = theme().f.bold;
+        std::string num = std::to_string(i + 1);
+        ImVec2 ns = bf->CalcTextSizeA(bf->FontSize, FLT_MAX, 0, num.c_str());
+        dl->AddText(bf, bf->FontSize, ImVec2(std::round(cx - ns.x / 2), std::round(a.y + 14 * s + (bs - ns.y) / 2)), IM_COL32_WHITE, num.c_str());
+        centeredText(dl, bf, bf->FontSize, cx, a.y + 56 * s, cw - 24 * s, col::ink, chs[i].name.c_str());
+        ImFont* sf = theme().f.small;
+        centeredText(dl, sf, sf->FontSize, cx, a.y + 78 * s, cw - 28 * s, col::ink2, chs[i].desc.c_str());
         std::string l = std::to_string(chs[i].lessons) + " leçons";
-        dl->AddText(ImVec2(a.x + cw - 14 * s - ImGui::CalcTextSize(l.c_str()).x, a.y + 22 * s), col::ink3, l.c_str());
-        ImGui::PopFont();
+        ImVec2 lsz = sf->CalcTextSizeA(sf->FontSize, FLT_MAX, 0, l.c_str());
+        dl->AddText(sf, sf->FontSize, ImVec2(std::round(b.x - 12 * s - lsz.x), std::round(a.y + 12 * s)), col::ink3, l.c_str());
         ImGui::Dummy(ImVec2(cw, ch));
         if (i % size_t(cols) == size_t(cols - 1)) ImGui::Dummy(ImVec2(1, gap - ImGui::GetStyle().ItemSpacing.y));
     }
@@ -627,13 +630,7 @@ void App::homeScreen() {
     float tx = o.x + (W - tw) / 2, ty = o.y + std::max(24.f * s, H * 0.07f);
     skeuo::glossTile(dl, ImVec2(tx, ty), ImVec2(tx + logo, ty + logo), col::rgb(94, 176, 255), col::rgb(10, 111, 214), 14 * s);
     ImGui::PopFont();
-    ImGui::PushFont(theme().f.icons);
-    {
-        ImVec2 isz = ImGui::CalcTextSize(ICON_MUSIC);
-        float k = 0.62f;
-        dl->AddText(theme().f.icons, theme().f.icons->FontSize * k, ImVec2(tx + (logo - isz.x * k) / 2, ty + (logo - isz.y * k) / 2), IM_COL32_WHITE, ICON_MUSIC);
-    }
-    ImGui::PopFont();
+    svg::drawCentered(dl, ICON_MUSIC, ImVec2(tx + logo / 2, ty + logo / 2), logo * 0.58f, IM_COL32_WHITE);
     ImGui::PushFont(theme().f.hero);
     float tyText = ty + (logo - s1.y) / 2;
     dl->AddText(ImVec2(tx + logo + 16 * s, tyText), IM_COL32_WHITE, t1);
@@ -669,20 +666,13 @@ void App::homeScreen() {
         if (b.x < o.x || a.x > o.x + W) continue;
         bool cur = i == homeCard;
         float alpha = cur ? 1.f : 0.5f;
-        skeuo::dropShadow(dl, a, b, 26 * s, 26 * s, 0.9f);
-        skeuo::material(dl, skeuo::Mat::Leather, a, b, mixColor(col::rgb(74, 72, 72), c.tint, 0.12f), 26 * s, s);
-        dl->AddRectFilledMultiColor(a, b, IM_COL32(255, 255, 255, 26), IM_COL32(255, 255, 255, 26), IM_COL32(0, 0, 0, 90), IM_COL32(0, 0, 0, 90));
-        skeuo::stitches(dl, a, b, 26 * s, 10 * s, col::rgb(214, 204, 186, 200));
-        dl->AddRect(a, b, IM_COL32(0, 0, 0, 170), 26 * s, 0, 1.5f);
+        skeuo::surface(dl, a, b, 24 * s, mixColor(col::rgb(58, 58, 63), c.tint, 0.10f), col::rgb(36, 36, 40), 2.f);
         // illustration : tuile d'icône en dégradé
         float tile = std::min(cardH * 0.48f, 220 * s);
         ImVec2 ta(a.x + cardW * 0.2f - tile / 2, a.y + cardH * 0.36f - tile / 2);
         skeuo::glossTile(dl, ta, ImVec2(ta.x + tile, ta.y + tile), c.c0, c.c1, tile * 0.22f);
-        ImGui::PushFont(theme().f.icons);
-        float k = tile / theme().f.icons->FontSize * 0.5f;
-        ImVec2 isz = ImGui::CalcTextSize(c.icon);
-        dl->AddText(theme().f.icons, theme().f.icons->FontSize * k, ImVec2(ta.x + (tile - isz.x * k) / 2, ta.y + (tile - isz.y * k) / 2), IM_COL32_WHITE, c.icon);
-        ImGui::PopFont();
+        svg::drawCentered(dl, c.icon, ImVec2(ta.x + tile / 2, ta.y + tile / 2 + 1.5f * s), tile * 0.5f, IM_COL32(0, 0, 0, 60));   // ombre
+        svg::drawCentered(dl, c.icon, ImVec2(ta.x + tile / 2, ta.y + tile / 2), tile * 0.5f, IM_COL32_WHITE);
         // texte
         float tx0 = a.x + cardW * 0.42f, tw0 = cardW * 0.52f, yy = a.y + cardH * 0.14f;
         ImGui::PushFont(theme().f.small);
@@ -694,14 +684,9 @@ void App::homeScreen() {
         float tk = std::min(1.f, tw0 / ts.x);
         dl->AddText(theme().f.hero, theme().f.hero->FontSize * tk, ImVec2(tx0 + (tw0 - ts.x * tk) / 2, yy + 22 * s), IM_COL32_WHITE, c.title);
         ImGui::PopFont();
-        ImGui::PushFont(theme().f.ui);
-        float wrap = tw0 * 0.86f;
-        ImVec2 ds = ImGui::CalcTextSize(c.desc, nullptr, false, wrap);
-        dl->AddText(theme().f.ui, theme().f.ui->FontSize * 1.1f, ImVec2(tx0 + (tw0 - wrap) / 2, yy + 22 * s + ts.y * tk + 14 * s), col::ink2, c.desc, nullptr, wrap);
-        (void)ds;
-        ImGui::PopFont();
+        float descH = centeredText(dl, theme().f.ui, theme().f.ui->FontSize * 1.1f, tx0 + tw0 / 2, yy + 22 * s + ts.y * tk + 14 * s, tw0 * 0.86f, col::ink2, c.desc);
         // « Entrer › »
-        ImGui::SetCursorScreenPos(ImVec2(tx0 + tw0 / 2 - 50 * s, a.y + cardH * 0.62f - 6 * s));
+        ImGui::SetCursorScreenPos(ImVec2(std::round(tx0 + tw0 / 2 - 50 * s), std::round(std::min(a.y + cardH * 0.64f, yy + 22 * s + ts.y * tk + 24 * s + descH))));
         ImGui::PushID(i);
         ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 14));
@@ -710,8 +695,9 @@ void App::homeScreen() {
         ImGui::PopStyleColor(3);
         // séparateur + raccourcis
         float sy = a.y + cardH * 0.74f;
-        dl->AddLine(ImVec2(a.x + 40 * s, sy), ImVec2(b.x - 40 * s, sy), col::rgb(0, 0, 0, 140));
-        dl->AddLine(ImVec2(a.x + 40 * s, sy + 1), ImVec2(b.x - 40 * s, sy + 1), col::rgb(255, 255, 255, 28));
+        sy = std::round(sy) + 0.5f;
+        dl->AddLine(ImVec2(a.x + 40 * s, sy), ImVec2(b.x - 40 * s, sy), col::rgb(0, 0, 0, 120));
+        dl->AddLine(ImVec2(a.x + 40 * s, sy + 1), ImVec2(b.x - 40 * s, sy + 1), col::rgb(255, 255, 255, 20));
         float cellW = (cardW - 80 * s) / c.n;
         for (int k2 = 0; k2 < c.n; ++k2) {
             ImVec2 ca(a.x + 40 * s + k2 * cellW, sy + 10 * s);
@@ -720,17 +706,14 @@ void App::homeScreen() {
             bool clicked = ImGui::InvisibleButton("sc", ImVec2(cellW, cardH * 0.24f));
             bool hov = ImGui::IsItemHovered();
             ImGui::PopID();
-            if (hov) dl->AddRectFilled(ImVec2(ca.x + cellW * 0.2f, ca.y), ImVec2(ca.x + cellW * 0.8f, ca.y + cardH * 0.22f), col::rgb(255, 255, 255, 14), 12 * s);
-            float ik = 0.85f * s * 40 / theme().f.icons->FontSize;
-            ImVec2 is = ImGui::CalcTextSize(c.scIc[k2]);
-            (void)is;
-            float isz2 = theme().f.icons->FontSize * ik;
-            dl->AddText(theme().f.icons, isz2, ImVec2(ca.x + cellW / 2 - isz2 / 2, ca.y + 11.5f * s), IM_COL32(0, 0, 0, 150), c.scIc[k2]);
-            dl->AddText(theme().f.icons, isz2, ImVec2(ca.x + cellW / 2 - isz2 / 2, ca.y + 10 * s), IM_COL32_WHITE, c.scIc[k2]);
-            ImGui::PushFont(theme().f.ui);
-            ImVec2 ls = ImGui::CalcTextSize(c.sc[k2]);
-            dl->AddText(ImVec2(ca.x + (cellW - ls.x) / 2, ca.y + 18 * s + isz2), col::ink2, c.sc[k2]);
-            ImGui::PopFont();
+            if (hov) dl->AddRectFilled(ImVec2(ca.x + cellW * 0.2f, ca.y), ImVec2(ca.x + cellW * 0.8f, ca.y + cardH * 0.22f), col::rgb(255, 255, 255, 10), 12 * s);
+            float isz2 = std::round(34 * s);
+            ImVec2 ic(std::round(ca.x + cellW / 2), std::round(ca.y + 12 * s + isz2 / 2));
+            svg::drawCentered(dl, c.scIc[k2], ImVec2(ic.x, ic.y + 1.5f * s), isz2, IM_COL32(0, 0, 0, 90));
+            svg::drawCentered(dl, c.scIc[k2], ic, isz2, hov ? col::accentHi : IM_COL32_WHITE);
+            ImFont* uf = theme().f.ui;
+            ImVec2 ls = uf->CalcTextSizeA(uf->FontSize, FLT_MAX, 0, c.sc[k2]);
+            dl->AddText(uf, uf->FontSize, ImVec2(std::round(ca.x + (cellW - ls.x) / 2), std::round(ca.y + 20 * s + isz2)), col::ink2, c.sc[k2]);
             if (clicked) {
                 if (!cur) homeCard = i;
                 else {
@@ -766,6 +749,10 @@ void App::homeScreen() {
     ImGui::SetCursorScreenPos(ImVec2(o.x + W / 2 - 170 * s, dy + 24 * s));
     std::string resume = std::string(ICON_PLAY "  Reprendre « ") + doc.P.name + " »";
     if (skeuo::glossButton("resume", resume.c_str(), true, ImVec2(ImGui::CalcTextSize(resume.c_str()).x + 30 * s, ImGui::GetFrameHeight() + 4 * s))) go(Mode::Comp);
+    ImGui::SameLine();
+    if (skeuo::glossButton("homepiano", ICON_PIANO "  Piano", piano.open, ImVec2(ImGui::CalcTextSize(ICON_PIANO "  Piano").x + 28 * s, ImGui::GetFrameHeight() + 4 * s),
+                           false, "Piano flottant (Ctrl+K)"))
+        piano.open = !piano.open;
     ImGui::SameLine();
     float& sc = gScale[0];
     if (ImGui::Button(ICON_MINUS "##hs")) { sc = std::max(0.7f, sc - 0.05f); theme().setUserScale(sc); }

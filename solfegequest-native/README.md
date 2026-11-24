@@ -53,6 +53,14 @@ dans l'esprit de GarageBand / Logic / iOS 6 :
 - Rendu : liseré dans l'en-tête, teinte des régions, notes du piano roll, haut des tranches du mixeur, pastille dans l'en-tête des panneaux.
 - Enregistré dans la piste (`color`, `colorSet`) → inclus dans le `.sqproj` et dans **Annuler / Rétablir** (Ctrl+Z / Ctrl+Maj+Z).
 
+## Piano flottant (`src/piano.cpp`)
+
+Bouton clavier en haut à droite (ou **Ctrl+K**), disponible dans tous les modes. Fenêtre flottante, déplaçable par la poignée et redimensionnable ; le nombre d'octaves suit la largeur.
+
+- Joue le son de la piste sélectionnée (piano à queue sinon). Les notes sont **tenues** tant que la touche est enfoncée ; on peut glisser la souris d'une touche à l'autre.
+- Clavier d'ordinateur : QWERTY `A S D F G H J K L ;` (blanches) et `W E T Y U O P` (noires) ; AZERTY détecté automatiquement sous Windows : `Q S D F G H J K L M` et `Z E T Y U O P`. Octave : `Z`/`X` (AZERTY : `W`/`X`), vélocité : `C`/`V`. Inactif pendant une saisie de texte.
+- **Saisie** : chaque note jouée est écrite dans la région sélectionnée, avec la durée réglée dans le piano roll ; les notes jouées ensemble forment un accord, la position avance au relâchement. Annulable (Ctrl+Z).
+
 ## Projets
 
 - Format `.sqproj` identique à l'ancienne version (zip + `project.json`) : les projets existants s'ouvrent ; les champs

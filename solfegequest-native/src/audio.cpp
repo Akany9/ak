@@ -154,6 +154,7 @@ struct Audio::Voice {
     int64_t hold = 0;          // trames avant le relâchement
     float gain = 1, env = 0, att = 1, rel = 0.9995f, dec = 1;
     bool released = false;
+    int live = -1;             // note tenue (piano flottant) : hauteur MIDI, sinon -1
     // échantillon
     const float* pcm = nullptr;
     size_t len = 0;
@@ -319,6 +320,18 @@ void Audio::audition(const std::string& inst, int midi, int vel, double seconds,
     if (pending_.size() < 64) pending_.push_back({inst, midi, vel, seconds, trackIndex});
 }
 
+void Audio::liveOn(const std::string& inst, int midi, int vel, int trackIndex) {
+    const Instrument* in = catalog().inst(inst);
+    if (in && !in->pack.empty()) bank().want(in->pack);
+    std::lock_guard<std::mutex> l(pendMu_);
+    if (pending_.size() < 64) pending_.push_back({inst, midi, vel, 0, trackIndex, 1});
+}
+
+void Audio::liveOff(int midi) {
+    std::lock_guard<std::mutex> l(pendMu_);
+    if (pending_.size() < 64) pending_.push_back({"", midi, 0, 0, -1, 2});
+}
+
 void Audio::click(bool accent, uint32_t delay) {
     for (auto& v : *voices_)
         if (v.kind == VKind::Off) {
@@ -334,7 +347,7 @@ void Audio::click(bool accent, uint32_t delay) {
 }
 
 void Audio::startNote(const Snapshot& s, int track, const std::string& inst, int midi, int vel, double durBeats,
-                      double durSeconds, uint32_t delay, float bpm) {
+                      double durSeconds, uint32_t delay, float bpm, int liveTag) {
     Voice* slot = nullptr;
     for (auto& v : *voices_)
         if (v.kind == VKind::Off) { slot = &v; break; }
@@ -346,6 +359,7 @@ void Audio::startNote(const Snapshot& s, int track, const std::string& inst, int
     }
     (void)s;
     Voice v;
+    v.live = liveTag;
     v.track = track;
     v.delay = delay;
     double sec = durSeconds > 0 ? durSeconds : durBeats * 60.0 / bpm;
@@ -365,6 +379,7 @@ void Audio::startNote(const Snapshot& s, int track, const std::string& inst, int
         v.gain = 0.9f * vel01;
         v.env = 1;
         v.hold = int64_t(v.len);  // la batterie sonne jusqu'au bout
+        v.live = -1;
         v.rel = 0.9990f;
         *slot = v;
         return;
@@ -418,7 +433,13 @@ void Audio::render(float* out, uint32_t frames) {
     {
         std::unique_lock<std::mutex> l(pendMu_, std::try_to_lock);
         if (l.owns_lock() && !pending_.empty() && s) {
-            for (auto& p : pending_) startNote(*s, p.track, p.inst, p.midi, p.vel, 0, p.sec, 0, bpm);
+            for (auto& p : pending_) {
+                if (p.op == 0) startNote(*s, p.track, p.inst, p.midi, p.vel, 0, p.sec, 0, bpm);
+                else if (p.op == 1) startNote(*s, p.track, p.inst, p.midi, p.vel, 0, 3600, 0, bpm, p.midi);
+                else
+                    for (auto& v : *voices_)
+                        if (v.kind != VKind::Off && v.live == p.midi && !v.released) { v.released = true; v.live = -1; }
+            }
             pending_.clear();
         }
     }

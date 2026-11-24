@@ -26,9 +26,25 @@ struct EditState {
     char renameBuf[64] = {};
 };
 
+// Piano flottant : fenêtre clavier jouable à la souris ou au clavier de l'ordinateur
+struct PianoState {
+    bool open = false;
+    int octave = 4;           // octave de la touche « Do » la plus à gauche du jeu au clavier
+    int vel = 96;
+    bool hints = true;        // afficher les lettres du clavier d'ordinateur
+    bool step = false;        // saisie pas à pas dans la région sélectionnée
+    double stepPos = 0;       // position de saisie (en noires, relative à la région)
+    std::string stepRegion;
+    std::vector<int> held;    // notes tenues (souris + clavier)
+    int mouseNote = -1;
+    bool chordAdded = false;  // un accord est en cours de saisie
+};
+
 class App {
 public:
     Doc doc;
+    PianoState piano;
+    bool azerty = false;      // disposition du clavier d'ordinateur (France, Belgique)
     Mode mode = Mode::Home;
     Panels panels;
     EditState ed;
@@ -67,6 +83,8 @@ public:
     void browserPanel();
     void chordsPanel();
     void trackColorPopup();
+    void pianoWindow();                       // piano.cpp
+    void pianoPress(int midi, bool on);
 
 private:
     void shortcuts();

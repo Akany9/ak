@@ -1,9 +1,13 @@
 #include "theme.hpp"
 
+#include <cmath>
+#include <cstring>
+
 #include "../third_party/imgui/imgui_internal.h"
 
 #include "assets.hpp"
 #include "icons.hpp"
+#include "svgicons.hpp"
 
 namespace sq {
 
@@ -18,8 +22,11 @@ static ImFont* addFont(Asset a, float size, bool withIcons, const ImWchar* range
     Blob b = asset(a);
     ImFontConfig cfg;
     cfg.FontDataOwnedByAtlas = false;  // données embarquées dans l'exécutable
-    cfg.OversampleH = 2;
+    // netteté : glyphes calés sur la grille de pixels, rastérisés à la taille exacte d'affichage
+    cfg.OversampleH = a == Asset::Bravura ? 2 : 1;
     cfg.OversampleV = 1;
+    cfg.PixelSnapH = a != Asset::Bravura;
+    size = std::round(size);
     ImFont* f = io.Fonts->AddFontFromMemoryTTF(const_cast<uint8_t*>(b.data), int(b.size), size, &cfg, ranges);
     if (symbols) {
         // ♭ ♮ ♯ et flèches (DejaVu Sans), absents d'Inter et de Fraunces
@@ -28,19 +35,12 @@ static ImFont* addFont(Asset a, float size, bool withIcons, const ImWchar* range
         ImFontConfig sc;
         sc.FontDataOwnedByAtlas = false;
         sc.MergeMode = true;
+        sc.OversampleH = 1;
+        sc.PixelSnapH = true;
         io.Fonts->AddFontFromMemoryTTF(const_cast<uint8_t*>(sb.data), int(sb.size), size, &sc, symRanges);
     }
-    if (withIcons) {
-        static const ImWchar iconRanges[] = {ICON_MIN, ICON_MAX, 0};
-        Blob ib = asset(Asset::Icons);
-        ImFontConfig ic;
-        ic.FontDataOwnedByAtlas = false;
-        ic.MergeMode = true;
-        ic.PixelSnapH = true;
-        ic.GlyphMinAdvanceX = size * 1.1f;
-        ic.GlyphOffset = ImVec2(0, size * 0.12f);
-        io.Fonts->AddFontFromMemoryTTF(const_cast<uint8_t*>(ib.data), int(ib.size), size * 0.95f, &ic, iconRanges);
-    }
+    // icônes SVG : glyphes rastérisés pixel pour pixel à cette taille (voir svgicons.cpp)
+    if (withIcons) svg::addToFont(f, size);
     return f;
 }
 
@@ -55,17 +55,12 @@ void Theme::buildFonts() {
     f.small = addFont(Asset::Inter, 12.5f * s, true, latin);
     f.title = addFont(Asset::Fraunces, 26 * s, false, latin);
     f.hero = addFont(Asset::Fraunces, 46 * s, false, latin);
-    {
-        static const ImWchar iconRanges[] = {ICON_MIN, ICON_MAX, 0};
-        Blob ib = asset(Asset::Icons);
-        ImFontConfig ic;
-        ic.FontDataOwnedByAtlas = false;
-        f.icons = io.Fonts->AddFontFromMemoryTTF(const_cast<uint8_t*>(ib.data), int(ib.size), 40 * s, &ic, iconRanges);
-    }
+    f.icons = f.ui;  // les grandes icônes sont tracées en vectoriel (svg::draw)
     // Bravura : ascendant + descendant = 4,024 cadratins ; cadratin visé = 4 interlignes de 9 px
     f.music = addFont(Asset::Bravura, 36 * s * 4.024f, false, smufl);
     io.FontDefault = f.ui;
     io.Fonts->Build();
+    svg::rasterizePending();
     fontsDirty = false;
     applyStyle();
 }
@@ -190,6 +185,24 @@ void sectionLabel(const char* text) {
     ImGui::TextUnformatted(text);
     ImGui::PopStyleColor();
     ImGui::PopFont();
+}
+
+float centeredText(ImDrawList* dl, ImFont* font, float size, float cx, float y, float wrap, ImU32 col, const char* text) {
+    const char* p = text;
+    const char* end = text + std::strlen(text);
+    float lineH = size * 1.32f, y0 = y;
+    while (p < end) {
+        const char* e = font->CalcWordWrapPositionA(size / font->FontSize, p, end, wrap);
+        if (e == p) e = p + 1;
+        const char* le = e;
+        while (le > p && (le[-1] == ' ' || le[-1] == '\n')) --le;
+        ImVec2 sz = font->CalcTextSizeA(size, FLT_MAX, 0, p, le);
+        dl->AddText(font, size, ImVec2(std::round(cx - sz.x / 2), std::round(y)), col, p, le);
+        y += lineH;
+        p = e;
+        while (p < end && (*p == ' ' || *p == '\n')) ++p;
+    }
+    return y - y0;
 }
 
 }  // namespace sq

@@ -10,6 +10,7 @@
 #include "catalog.hpp"
 #include "icons.hpp"
 #include "skeuo.hpp"
+#include "svgicons.hpp"
 #include "theme.hpp"
 #include "util.hpp"
 
@@ -45,11 +46,12 @@ std::string posLabel(const Project& P, double beat) {
     return r;
 }
 
-ImU32 trackColor(const Track& t) { return t.colorSet ? hexColor(t.color) : col::neutral; }
+// couleur effective : choisie par l'utilisateur, sinon couleur automatique de la 1.6 (selon le rang de la piste)
+ImU32 trackColor(const Track& t) { return hexColor(effectiveTrackColor(app().doc.P, t)); }
 
 ImU32 regionFill(const Track& t, bool sel) {
-    if (!t.colorSet) return sel ? col::regionSel : col::region;
-    return mixColor(sel ? col::regionSel : col::region, hexColor(t.color), sel ? 0.5f : 0.38f);
+    ImU32 c = trackColor(t);
+    return sel ? mixColor(c, IM_COL32_WHITE, 0.08f) : mixColor(c, IM_COL32(0, 0, 0, 255), 0.18f);
 }
 
 bool isBlack(int m) {
@@ -84,47 +86,50 @@ void App::trackColorPopup() {
     }
     float s = theme().scale;
     ImGui::PushFont(theme().f.bold);
-    ImGui::Text("Couleur de la piste");
+    ImGui::Text("Couleur de « %s »", t->name.c_str());
     ImGui::PopFont();
-    ImGui::TextDisabled("%s", t->name.c_str());
-    static const char* pal[][2] = {{"#7a1f33", "Bordeaux"}, {"#b3263c", "Carmin"}, {"#c98a1b", "Ambre"}, {"#7f9a6e", "Sauge"},
-                                   {"#2f9c9a", "Turquoise"}, {"#4f6d8f", "Ardoise"}, {"#7b4a8c", "Prune"}, {"#e8e4dc", "Blanc cassé"}};
+    // palette de la 1.6.1 + aucune couleur (gris neutre) + couleur automatique + couleur personnalisée
+    static const char* pal[][2] = {{"#8e2740", "Bordeaux"}, {"#a8223d", "Carmin"}, {"#b5566a", "Rose ancien"}, {"#c98a2e", "Ambre"},
+                                   {"#b89b6e", "Sable"}, {"#7f9474", "Sauge"}, {"#3f9a9a", "Turquoise"}, {"#3a7bd5", "Bleu"},
+                                   {"#5b6b82", "Ardoise"}, {"#8a7fc4", "Lavande"}, {"#7a4a7e", "Prune"}, {"#4e4e58", "Graphite"},
+                                   {"#9a9aa5", "Gris perle"}, {"#e8e2d6", "Blanc cassé"}};
     std::string id = t->id;
-    auto apply = [&](const std::string& c) {
-        doc.edit(c.empty() ? "Retirer la couleur" : "Couleur de la piste", [&](Project& P) {
+    std::string cur = effectiveTrackColor(doc.P, *t);
+    auto apply = [&](const std::string& c, bool set, const char* label) {
+        doc.edit(label, [&](Project& P) {
             Track* tr = P.track(id);
             if (!tr) return;
-            if (c.empty()) { tr->colorSet = false; tr->color = kNeutralTrack; }
-            else { tr->colorSet = true; tr->color = c; }
+            tr->colorSet = set;
+            tr->color = c;
         });
     };
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 14; ++i) {
         float rgb[3];
         hexToFloat(pal[i][0], rgb);
         ImGui::PushID(i);
-        bool cur = t->colorSet && t->color == pal[i][0];
-        if (cur) ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.f);
-        if (ImGui::ColorButton(pal[i][1], ImVec4(rgb[0], rgb[1], rgb[2], 1), ImGuiColorEditFlags_NoTooltip, ImVec2(26 * s, 26 * s))) {
-            apply(pal[i][0]);
+        ImVec2 p0 = ImGui::GetCursorScreenPos();
+        if (ImGui::InvisibleButton("sw", ImVec2(26 * s, 26 * s))) {
+            apply(pal[i][0], true, "Couleur de la piste");
             ImGui::CloseCurrentPopup();
         }
-        if (cur) ImGui::PopStyleVar();
+        ImDrawList* pdl = ImGui::GetWindowDrawList();
+        ImVec2 c(p0.x + 13 * s, p0.y + 13 * s);
+        if (cur == pal[i][0]) pdl->AddCircle(c, 13 * s, col::accent, 0, 2 * s);
+        pdl->AddCircleFilled(c, (ImGui::IsItemHovered() ? 11.5f : 10.5f) * s, hexColor(pal[i][0]));
         tooltip(pal[i][1]);
         ImGui::PopID();
-        if (i % 4 != 3) ImGui::SameLine();
+        if (i % 7 != 6) ImGui::SameLine(0, 5 * s);
     }
     ImGui::Separator();
-    if (ImGui::Button(ICON_BAN "  Aucune couleur (défaut)", ImVec2(-1, 0))) {
-        apply("");
-        ImGui::CloseCurrentPopup();
-    }
-    static float custom[3] = {0.48f, 0.12f, 0.2f};
-    if (ImGui::IsWindowAppearing()) hexToFloat(t->colorSet ? t->color : "#7a1f33", custom);
+    if (ImGui::Selectable(ICON_BAN "  Aucune (gris neutre)")) apply(kNeutralTrack, true, "Aucune couleur");
+    if (ImGui::Selectable(ICON_LOOP "  Couleur automatique")) apply("", false, "Couleur automatique");
+    static float custom[3] = {0.55f, 0.15f, 0.25f};
+    if (ImGui::IsWindowAppearing()) hexToFloat(cur, custom);
     ImGui::TextDisabled("Couleur personnalisée");
-    ImGui::SetNextItemWidth(180 * s);
+    ImGui::SetNextItemWidth(220 * s);
     ImGui::ColorPicker3("##custom", custom, ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueBar);
-    if (ImGui::Button(ICON_CHECK "  Appliquer", ImVec2(-1, 0))) {
-        apply(colorToHex(custom));
+    if (skeuo::glossButton("applyc", ICON_CHECK "  Appliquer", true, ImVec2(220 * s, ImGui::GetFrameHeight()))) {
+        apply(colorToHex(custom), true, "Couleur personnalisée");
         ImGui::CloseCurrentPopup();
     }
     ImGui::EndPopup();
@@ -147,7 +152,7 @@ void App::playlistPanel() {
     if (iconButton("follow", ICON_TARGET, "Suivre la tête de lecture", ed.follow)) ed.follow = !ed.follow;
     panels.headerButtons(P_Playlist);
 
-    const float headW = 196 * s, rowH = 54 * s, rulerH = 24 * s;
+    const float headW = 200 * s, rowH = 66 * s, rulerH = 24 * s;
     const float ppb = ed.zoom * s;
     const double bb = P.barBeats();
     const double totalBeats = std::max(P.endBeat() + bb * 16, bb * 32);
@@ -169,12 +174,16 @@ void App::playlistPanel() {
             ImGui::PushID(t.id.c_str());
             ImVec2 a(o.x, o.y + rulerH + i * rowH), b(o.x + headW, a.y + rowH);
             bool sel = doc.selTrack == t.id;
-            dl->AddRectFilled(a, b, sel ? col::rgb(44, 44, 48) : col::rgb(28, 28, 30));
-            dl->AddLine(ImVec2(a.x, b.y - 1), ImVec2(b.x, b.y - 1), col::sep);
-            if (t.colorSet) dl->AddRectFilled(a, ImVec2(a.x + 3 * s, b.y), hexColor(t.color));
-            // zone cliquable (sélection, menu contextuel)
+            ImU32 tc = trackColor(t);
+            dl->AddRectFilled(a, b, sel ? mixColor(col::rgb(38, 38, 40), tc, 0.32f) : col::rgb(38, 38, 40));
+            dl->AddLine(ImVec2(a.x, b.y - 1), ImVec2(b.x, b.y - 1), col::rgb(0, 0, 0, 120));
+            dl->AddRectFilled(a, ImVec2(a.x + 5 * s, b.y), tc);   // barre de couleur (cliquer : changer la couleur)
+            // barre de couleur cliquable (à gauche), puis zone cliquable (sélection, menu contextuel)
             ImGui::SetCursorScreenPos(a);
-            ImGui::InvisibleButton("hd", ImVec2(headW, rowH));
+            if (ImGui::InvisibleButton("cbar", ImVec2(8 * s, rowH))) openTrackColor(t.id);
+            tooltip("Couleur de la piste (cliquer pour changer)");
+            ImGui::SetCursorScreenPos(ImVec2(a.x + 8 * s, a.y));
+            ImGui::InvisibleButton("hd", ImVec2(headW - 8 * s, rowH));
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) doc.selTrack = t.id;
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                 ed.renameTrack = t.id;
@@ -192,15 +201,17 @@ void App::playlistPanel() {
                 if (ImGui::MenuItem("Supprimer la piste")) toDelete = t.id;
                 ImGui::EndPopup();
             }
-            // icône + nom
-            float x = a.x + 10 * s, y = a.y + 7 * s;
-            ImGui::PushFont(theme().f.small);
-            dl->AddRectFilled(ImVec2(x, y), ImVec2(x + 18 * s, y + 18 * s), col::ctl, 5 * s);
-            dl->AddText(ImVec2(x + 3 * s, y + 1 * s), col::ink2, catalog().icon(t.inst));
-            ImGui::PopFont();
+            // icône (carré de la couleur de la piste) + nom
+            float x = a.x + 14 * s, y = a.y + 9 * s;
+            {
+                float is = 30 * s;
+                dl->AddRectFilled(ImVec2(x, y), ImVec2(x + is, y + is), tc, 7 * s);
+                svg::drawCentered(dl, catalog().icon(t.inst), ImVec2(x + is / 2, y + is / 2), 18 * s, IM_COL32_WHITE, 1.f);
+            }
+            float nx = x + 38 * s;
             if (ed.renameTrack == t.id) {
-                ImGui::SetCursorScreenPos(ImVec2(x + 24 * s, y - 2 * s));
-                ImGui::SetNextItemWidth(headW - 40 * s);
+                ImGui::SetCursorScreenPos(ImVec2(nx, y + 2 * s));
+                ImGui::SetNextItemWidth(headW - (nx - a.x) - 8 * s);
                 ImGui::SetKeyboardFocusHere();
                 if (ImGui::InputText("##rn", ed.renameBuf, sizeof ed.renameBuf, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll) ||
                     ImGui::IsItemDeactivated()) {
@@ -209,18 +220,17 @@ void App::playlistPanel() {
                     ed.renameTrack.clear();
                 }
             } else {
-                ImGui::PushFont(theme().f.small);
-                ImGui::PushClipRect(ImVec2(x + 24 * s, a.y), ImVec2(b.x - 8 * s, b.y), true);
-                dl->AddText(ImVec2(x + 25 * s, y + 1 * s), sel ? col::ink : col::ink2, t.name.c_str());
+                ImFont* bf = theme().f.bold;
+                ImGui::PushClipRect(ImVec2(nx, a.y), ImVec2(b.x - 68 * s, b.y), true);
+                dl->AddText(bf, bf->FontSize, ImVec2(nx, std::round(y + (30 * s - bf->FontSize) / 2)), col::ink, t.name.c_str());
                 ImGui::PopClipRect();
-                ImGui::PopFont();
             }
-            // boutons M S ● + pastille de couleur
+            // boutons M S ● (à droite du nom, comme en 1.6)
             ImGui::PushFont(theme().f.small);
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4 * s, 1 * s));
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4 * s);
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(3 * s, 0));
-            ImGui::SetCursorScreenPos(ImVec2(x, y + 22 * s));
+            ImGui::SetCursorScreenPos(ImVec2(b.x - 60 * s, y + 7 * s));
             auto tbtn = [&](const char* label, bool on, const char* tip, ImU32 onCol) {
                 ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(on ? onCol : IM_COL32(0, 0, 0, 0)));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(on ? (onCol == col::rec ? IM_COL32_WHITE : col::rgb(28, 28, 30)) : col::ink3));
@@ -235,20 +245,11 @@ void App::playlistPanel() {
             if (tbtn("M", t.mute, "Muet", col::rgb(229, 229, 234))) doc.edit("Muet", [&](Project& Q) { if (Track* tr = Q.track(tid)) tr->mute = !tr->mute; });
             if (tbtn("S", t.solo, "Solo", col::rgb(229, 229, 234))) doc.edit("Solo", [&](Project& Q) { if (Track* tr = Q.track(tid)) tr->solo = !tr->solo; });
             if (tbtn("R", t.arm, "Armer pour l'enregistrement", col::rec)) doc.edit("Armer", [&](Project& Q) { if (Track* tr = Q.track(tid)) tr->arm = !tr->arm; });
-            // pastille couleur
-            {
-                ImVec2 c0 = ImGui::GetCursorScreenPos();
-                if (ImGui::InvisibleButton("sw", ImVec2(15 * s, 15 * s))) openTrackColor(t.id);
-                ImVec2 cc(c0.x + 7.5f * s, c0.y + 7.5f * s);
-                if (t.colorSet) dl->AddCircleFilled(cc, 5.5f * s, hexColor(t.color));
-                else dl->AddCircle(cc, 5.5f * s, col::ink3, 0, 1.2f);
-                tooltip(t.colorSet ? "Couleur de la piste (cliquer pour changer)" : "Aucune couleur — cliquer pour en choisir une");
-            }
             ImGui::PopStyleVar(3);
             ImGui::PopFont();
             // volume (curseur fin)
             {
-                float vx = x, vy = y + 41 * s, vw = headW - 28 * s;
+                float vx = x, vy = y + 44 * s, vw = headW - 34 * s;
                 ImGui::SetCursorScreenPos(ImVec2(vx, vy - 5 * s));
                 ImGui::InvisibleButton("vol", ImVec2(vw, 11 * s));
                 if (ImGui::IsItemActive()) {
@@ -260,9 +261,10 @@ void App::playlistPanel() {
                     doc.edit("Volume", [&](Project& Q) { if (Track* tr = Q.track(tid)) tr->vol = 0.78f; });
                 tooltip("Volume (double-clic : valeur par défaut)");
                 float vv = P.track(tid) ? P.track(tid)->vol : t.vol;
-                dl->AddRectFilled(ImVec2(vx, vy - 1.5f * s), ImVec2(vx + vw, vy + 1.5f * s), col::rgb(255, 255, 255, 30), 2);
-                dl->AddRectFilled(ImVec2(vx, vy - 1.5f * s), ImVec2(vx + vw * vv, vy + 1.5f * s), col::rgb(235, 235, 245, 140), 2);
-                dl->AddCircleFilled(ImVec2(vx + vw * vv, vy), 5 * s, col::rgb(229, 229, 234));
+                dl->AddRectFilled(ImVec2(vx, vy - 2 * s), ImVec2(vx + vw, vy + 2 * s), col::rgb(255, 255, 255, 26), 2 * s);
+                dl->AddRectFilled(ImVec2(vx, vy - 2 * s), ImVec2(vx + vw * vv, vy + 2 * s), col::accent, 2 * s);
+                dl->AddCircleFilled(ImVec2(vx + vw * vv, vy + 1 * s), 8 * s, IM_COL32(0, 0, 0, 70));
+                dl->AddCircleFilled(ImVec2(vx + vw * vv, vy), 8 * s, IM_COL32_WHITE);
             }
             ImGui::PopID();
         }
@@ -304,8 +306,8 @@ void App::playlistPanel() {
     // fond des pistes + grille
     for (size_t i = 0; i < P.tracks.size(); ++i) {
         float y0 = o.y + rulerH + i * rowH;
-        dl->AddRectFilled(ImVec2(wp.x, y0), ImVec2(wp.x + ws.x, y0 + rowH), doc.selTrack == P.tracks[i].id ? col::rgb(32, 32, 35) : col::rgb(25, 25, 27));
-        dl->AddLine(ImVec2(wp.x, y0 + rowH - 1), ImVec2(wp.x + ws.x, y0 + rowH - 1), col::sep);
+        dl->AddRectFilled(ImVec2(wp.x, y0), ImVec2(wp.x + ws.x, y0 + rowH), doc.selTrack == P.tracks[i].id ? col::rgb(44, 44, 46) : col::rgb(38, 38, 40));
+        dl->AddLine(ImVec2(wp.x, y0 + rowH - 1), ImVec2(wp.x + ws.x, y0 + rowH - 1), col::rgb(0, 0, 0, 120));
     }
     for (double b = snapDown(viewX0 / ppb, 1); b * ppb < viewX1; b += 1) {
         bool barLine = std::fmod(b, bb) < 1e-6;
@@ -319,13 +321,13 @@ void App::playlistPanel() {
     Hit hit;
     for (size_t i = 0; i < P.tracks.size(); ++i) {
         Track& t = P.tracks[i];
-        float y0 = o.y + rulerH + i * rowH + 4 * s, y1 = y0 + rowH - 8 * s;
+        float y0 = o.y + rulerH + i * rowH + 3 * s, y1 = y0 + rowH - 6 * s;
         for (auto& r : t.regions) {
             float x0 = o.x + float(r.s) * ppb, x1 = o.x + float(r.s + r.len) * ppb;
             if (x1 < wp.x || x0 > wp.x + ws.x) continue;
             bool sel = doc.selRegion == r.id;
-            dl->AddRectFilled(ImVec2(x0 + 1, y0), ImVec2(x1 - 1, y1), regionFill(t, sel), 4 * s);
-            dl->AddRect(ImVec2(x0 + 1, y0), ImVec2(x1 - 1, y1), sel ? col::rgb(255, 255, 255, 180) : col::rgb(255, 255, 255, 26), 4 * s, 0, sel ? 1.5f : 1.f);
+            dl->AddRectFilled(ImVec2(x0 + 1, y0), ImVec2(x1 - 1, y1), regionFill(t, sel), 3 * s);
+            dl->AddRect(ImVec2(x0 + 1, y0), ImVec2(x1 - 1, y1), sel ? IM_COL32_WHITE : col::rgb(0, 0, 0, 70), 3 * s, 0, sel ? 2.f : 1.f);
             // contenu miniature
             if (!r.notes.empty()) {
                 int lo = 127, hi = 0;
@@ -338,7 +340,7 @@ void App::playlistPanel() {
                         if (n.t >= inner || off + n.t >= r.len) continue;
                         float nx0 = o.x + float(r.s + off + n.t) * ppb, nx1 = std::max(nx0 + 2, o.x + float(r.s + off + n.t + n.d) * ppb - 1);
                         float ny = y1 - 4 * s - (float(n.m - lo) / range) * (y1 - y0 - 20 * s);
-                        dl->AddRectFilled(ImVec2(nx0, ny - 1), ImVec2(nx1, ny + 1), col::rgb(235, 235, 245, 200));
+                        dl->AddRectFilled(ImVec2(nx0, ny - 1), ImVec2(nx1, ny + 1), IM_COL32(255, 255, 255, 235));
                     }
                     if (!r.loop) break;
                     if (off > 0) dl->AddLine(ImVec2(o.x + float(r.s + off) * ppb, y0 + 14 * s), ImVec2(o.x + float(r.s + off) * ppb, y1), col::rgb(255, 255, 255, 50));
@@ -346,7 +348,11 @@ void App::playlistPanel() {
                 ImGui::PopClipRect();
             }
             ImGui::PushClipRect(ImVec2(x0, y0), ImVec2(x1 - 4, y1), true);
-            smallText(dl, ImVec2(x0 + 6 * s, y0 + 1 * s), col::rgb(235, 235, 245, 210), (r.name.empty() ? t.name : r.name).c_str());
+            {
+                ImFont* bf = theme().f.small;
+                std::string nm = r.name.empty() ? t.name : r.name;
+                dl->AddText(bf, bf->FontSize * 0.92f, ImVec2(x0 + 6 * s, y0 + 2 * s), IM_COL32_WHITE, nm.c_str());
+            }
             ImGui::PopClipRect();
             if (mp.x >= x0 && mp.x <= x1 && mp.y >= y0 && mp.y <= y1) {
                 hit.track = int(i);
@@ -549,9 +555,9 @@ void App::pianoRollPanel() {
     if (iconButton("pzi", ICON_ZOOM_IN, "Zoomer")) ed.prZoom = std::min(320.f, ed.prZoom * 1.25f);
     if (t && r) {
         ImGui::SameLine();
-        if (t->colorSet) {
+        {
             ImVec2 c = ImGui::GetCursorScreenPos();
-            ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(c.x + 5 * s, c.y + ImGui::GetFrameHeight() / 2), 4 * s, hexColor(t->color));
+            ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(c.x + 5 * s, c.y + ImGui::GetFrameHeight() / 2), 4 * s, trackColor(*t));
             ImGui::Dummy(ImVec2(12 * s, 1));
             ImGui::SameLine();
         }
@@ -663,7 +669,7 @@ void App::pianoRollPanel() {
     dl->AddRectFilled(ImVec2(endX, wp.y), ImVec2(wp.x + ws.x, wp.y + ws.y), col::rgb(0, 0, 0, 90));
     if (r->loop) dl->AddLine(ImVec2(o.x + float(inner) * ppb, wp.y), ImVec2(o.x + float(inner) * ppb, wp.y + ws.y), col::rgb(10, 132, 255, 160), 1.5f);
 
-    ImU32 noteCol = t->colorSet ? mixColor(hexColor(t->color), IM_COL32_WHITE, 0.25f) : col::rgb(210, 210, 216);
+    ImU32 noteCol = mixColor(trackColor(*t), IM_COL32_WHITE, 0.12f);
     ImVec2 mp = ImGui::GetIO().MousePos;
     int hitNote = -1;
     bool hitEdge = false;
@@ -673,7 +679,14 @@ void App::pianoRollPanel() {
         float y = o.y + (hi - n.m) * rowH;
         bool sel = std::find(ed.prSel.begin(), ed.prSel.end(), int(i)) != ed.prSel.end();
         dl->AddRectFilled(ImVec2(x0, y + 1), ImVec2(x1, y + rowH - 1), sel ? col::accentHi : noteCol, 3 * s);
-        dl->AddRect(ImVec2(x0, y + 1), ImVec2(x1, y + rowH - 1), col::rgb(0, 0, 0, 90), 3 * s);
+        dl->AddRect(ImVec2(x0, y + 1), ImVec2(x1, y + rowH - 1), col::rgb(255, 255, 255, 50), 3 * s);
+        {   // nom de la note dans la note (1.6), si la place le permet
+            ImFont* tf = theme().f.tiny;
+            std::string nm = pitchName(n.m);
+            ImVec2 ts = tf->CalcTextSizeA(tf->FontSize, FLT_MAX, 0, nm.c_str());
+            if (x1 - x0 > ts.x + 6 * s && rowH > ts.y - 1)
+                dl->AddText(tf, tf->FontSize, ImVec2(std::round(x0 + 3 * s), std::round(y + (rowH - ts.y) / 2)), IM_COL32(255, 255, 255, 210), nm.c_str());
+        }
         if (mp.x >= x0 && mp.x <= x1 && mp.y >= y && mp.y < y + rowH) {
             hitNote = int(i);
             hitEdge = mp.x > x1 - 6 * s;
@@ -1013,7 +1026,7 @@ void App::mixerPanel(bool large) {
     if (!large) panels.headerButtons(P_Mixer);
     // console « en dur » : tranches en aluminium brossé, étiquettes papier, potentiomètres, faders à capuchon,
     // vumètres à LED, joues en bois aux extrémités
-    float stripW = 92 * s, gap = 4 * s, cheek = 16 * s, h = ImGui::GetContentRegionAvail().y;
+    float stripW = 116 * s, gap = 10 * s, cheek = 0, h = ImGui::GetContentRegionAvail().y;
     int n = int(P.tracks.size()) + 1;
     float totalW = cheek * 2 + n * (stripW + gap) + 14 * s;
     ImGui::SetNextWindowContentSize(ImVec2(totalW, 0));
@@ -1024,55 +1037,65 @@ void App::mixerPanel(bool large) {
     // joues en bois
     ImVec2 w0 = origin, w1(origin.x + cheek, origin.y + sh);
     ImVec2 w2(origin.x + totalW - cheek, origin.y), w3(origin.x + totalW, origin.y + sh);
-    // embouts en aluminium anodisé sombre
-    for (auto [a, b] : {std::pair{w0, w1}, std::pair{w2, w3}}) skeuo::surface(dl, a, b, 5 * s, col::rgb(46, 46, 51), col::rgb(28, 28, 31), 0.6f);
+    (void)w0; (void)w1; (void)w2; (void)w3;
 
     auto strip = [&](int idx, float x, const char* name, const char* icon, bool colored, ImU32 color, float* vol, float* pan, bool* mute, bool* solo,
                      float level, bool sel) {
         ImGui::PushID(idx);
         ImVec2 a(x, origin.y), b(x + stripW, origin.y + sh);
-        // plaque
-        // tranche : aluminium anodisé (surface convexe + stries très fines)
-        skeuo::surface(dl, a, b, 7 * s, sel ? col::rgb(74, 74, 80) : col::rgb(62, 62, 67), col::rgb(40, 40, 44), 0.7f);
-        skeuo::material(dl, skeuo::Mat::Brushed, a, b, IM_COL32(255, 255, 255, 18), 7 * s, s);
-        // étiquette creusée, nom centré ; couleur facultative de la piste en liseré
-        ImVec2 l0(a.x + 7 * s, a.y + 9 * s), l1(b.x - 7 * s, a.y + 30 * s);
-        skeuo::well(dl, l0, l1, 5 * s);
-        if (colored) dl->AddRectFilled(ImVec2(l0.x + 4 * s, l1.y - 3 * s), ImVec2(l1.x - 4 * s, l1.y - 1.5f * s), color, 1);
+        // tranche de la 1.6 : carte sombre, piste sélectionnée entourée de la couleur d'accent
+        dl->AddRectFilled(a, b, col::rgb(30, 30, 33), 12 * s);
+        dl->AddRect(a, b, sel ? col::accent : col::rgb(255, 255, 255, 20), 12 * s, 0, sel ? 2 * s : 1.f);
+        // icône (couleur de la piste), nom, sous-titre
         {
-            ImFont* sf = theme().f.small;
-            std::string lab = std::string(icon) + " " + name;
-            ImVec2 tsz = sf->CalcTextSizeA(sf->FontSize, FLT_MAX, 0, lab.c_str());
-            float tx = tsz.x < l1.x - l0.x - 8 * s ? std::round((l0.x + l1.x - tsz.x) / 2) : l0.x + 4 * s;
-            ImGui::PushClipRect(ImVec2(l0.x + 2 * s, l0.y), ImVec2(l1.x - 2 * s, l1.y), true);
-            dl->AddText(sf, sf->FontSize, ImVec2(tx, std::round((l0.y + l1.y - tsz.y) / 2)), sel ? IM_COL32_WHITE : col::rgb(225, 225, 232), lab.c_str());
+            float is = 28 * s;
+            ImVec2 ia(std::round(a.x + (stripW - is) / 2), a.y + 12 * s);
+            dl->AddRectFilled(ia, ImVec2(ia.x + is, ia.y + is), colored ? color : col::rgb(72, 72, 74), 7 * s);
+            svg::drawCentered(dl, icon, ImVec2(ia.x + is / 2, ia.y + is / 2), 17 * s, IM_COL32_WHITE, 1.f);
+            ImFont* bf = theme().f.bold;
+            ImVec2 tsz = bf->CalcTextSizeA(bf->FontSize * 0.9f, FLT_MAX, 0, name);
+            float tx = tsz.x < stripW - 12 * s ? std::round(a.x + (stripW - tsz.x) / 2) : a.x + 6 * s;
+            ImGui::PushClipRect(ImVec2(a.x + 4 * s, a.y), ImVec2(b.x - 4 * s, b.y), true);
+            dl->AddText(bf, bf->FontSize * 0.9f, ImVec2(tx, a.y + 46 * s), IM_COL32_WHITE, name);
             ImGui::PopClipRect();
         }
         bool changed = false;
         // panoramique
-        float kr = 19 * s;
+        float kr = 21 * s;
         if (pan) {
-            ImGui::SetCursorScreenPos(ImVec2(std::round(a.x + stripW / 2 - kr), a.y + 38 * s));
+            ImGui::SetCursorScreenPos(ImVec2(std::round(a.x + stripW / 2 - kr), a.y + 74 * s));
             changed |= skeuo::knob("pan", pan, -1, 1, kr, "Panoramique (glisser ; double-clic : centre)", 0, true);
+            ImFont* tf = theme().f.tiny;
+            ImVec2 ps0 = tf->CalcTextSizeA(tf->FontSize, FLT_MAX, 0, "PAN");
+            dl->AddText(tf, tf->FontSize, ImVec2(std::round(a.x + (stripW - ps0.x) / 2), std::round(a.y + 80 * s + kr * 2)), col::ink2, "PAN");
             ImFont* sf = theme().f.small;
-            const char* pl = *pan < -0.02f ? "G" : *pan > 0.02f ? "D" : "C";
+            char pl[16];
+            if (std::fabs(*pan) < 0.02f) std::snprintf(pl, sizeof pl, "C");
+            else std::snprintf(pl, sizeof pl, "%s%d", *pan < 0 ? "G" : "D", int(std::lround(std::fabs(*pan) * 100)));
             ImVec2 psz = sf->CalcTextSizeA(sf->FontSize, FLT_MAX, 0, pl);
-            dl->AddText(sf, sf->FontSize, ImVec2(std::round(a.x + (stripW - psz.x) / 2), std::round(a.y + 40 * s + kr * 2)), col::rgb(230, 230, 236, 200), pl);
+            dl->AddText(sf, sf->FontSize, ImVec2(std::round(a.x + (stripW - psz.x) / 2), std::round(a.y + 94 * s + kr * 2)), col::ink3, pl);
         }
         // fader + vumètre
-        float fy = a.y + 100 * s, fh = sh - (fy - a.y) - 50 * s;
+        float fy = a.y + (pan ? 150 : 80) * s, fh = sh - (fy - a.y) - 74 * s;
         skeuo::ledMeter(dl, ImVec2(a.x + 10 * s, fy + 6 * s), ImVec2(a.x + 16 * s, fy + fh - 6 * s), std::min(1.f, level));
         ImGui::SetCursorScreenPos(ImVec2(a.x + 22 * s, fy));
         changed |= skeuo::fader("vol", vol, ImVec2(stripW - 30 * s, fh));
-        if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-            ImGui::SetTooltip("%.1f dB (double-clic : défaut)", 20 * std::log10(std::max(1e-4f, *vol * *vol * 1.6f)));
+        float vdb = 20 * std::log10(std::max(1e-4f, *vol * *vol * 1.6f));
+        if (ImGui::IsItemActive() || ImGui::IsItemHovered()) ImGui::SetTooltip("%.1f dB (double-clic : défaut)", vdb);
+        {
+            ImFont* sf = theme().f.small;
+            char vb[16];
+            std::snprintf(vb, sizeof vb, "%.1f", vdb);
+            ImVec2 vs = sf->CalcTextSizeA(sf->FontSize, FLT_MAX, 0, vb);
+            dl->AddText(sf, sf->FontSize, ImVec2(std::round(a.x + (stripW - vs.x) / 2), std::round(fy + fh + 6 * s)), col::ink2, vb);
+        }
         // muet / solo
         if (mute) {
             float bw = (stripW - 22 * s) / 2;
-            ImGui::SetCursorScreenPos(ImVec2(a.x + 8 * s, b.y - 38 * s));
-            if (skeuo::glossButton("m", "M", *mute, ImVec2(bw, 22 * s), false, "Muet")) { *mute = !*mute; changed = true; }
+            ImGui::SetCursorScreenPos(ImVec2(a.x + 8 * s, b.y - 36 * s));
+            if (skeuo::glossButton("m", "M", *mute, ImVec2(bw, 24 * s), false, "Muet")) { *mute = !*mute; changed = true; }
             ImGui::SameLine(0, 6 * s);
-            if (skeuo::glossButton("s", "S", *solo, ImVec2(bw, 22 * s), false, "Solo")) { *solo = !*solo; changed = true; }
+            if (skeuo::glossButton("s", "S", *solo, ImVec2(bw, 24 * s), false, "Solo")) { *solo = !*solo; changed = true; }
         }
         ImGui::PopID();
         return changed;
@@ -1081,7 +1104,7 @@ void App::mixerPanel(bool large) {
     for (size_t i = 0; i < P.tracks.size(); ++i) {
         Track t = P.tracks[i];
         std::string tid = t.id;
-        bool ch = strip(int(i), x, t.name.c_str(), catalog().icon(t.inst), t.colorSet, trackColor(t), &t.vol, &t.pan, &t.mute, &t.solo,
+        bool ch = strip(int(i), x, t.name.c_str(), catalog().icon(t.inst), true, trackColor(t), &t.vol, &t.pan, &t.mute, &t.solo,
                         audio().trackLevel(int(i)), doc.selTrack == t.id);
         if (ch) doc.editCoalesced("mix" + tid + std::to_string(int(ImGui::GetActiveID())), [&](Project& Q) {
             if (Track* tr = Q.track(tid)) { tr->vol = t.vol; tr->pan = t.pan; tr->mute = t.mute; tr->solo = t.solo; }

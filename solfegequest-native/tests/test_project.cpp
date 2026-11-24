@@ -27,7 +27,9 @@ int main(int argc, char** argv) {
     assert(b["tracks"][0]["regions"][0]["drummer"]["style"] == "funk");
     assert(b["marks"][0]["n"] == "Refrain");
     assert(b["tracks"][1]["colorSet"] == true && b["tracks"][2].value("colorSet", false) == false);
-    assert(b["tracks"][2]["color"] == kNeutralTrack);  // couleur automatique de l'ancienne version → neutre
+    assert(b["tracks"][2]["color"] == "#4e4e58");             // couleur de la 1.6 conservée
+    assert(b["tracks"][3]["color"] == kTrackColors16[3]);    // couleur automatique d'une version ultérieure → palette de la 1.6
+    assert(effectiveTrackColor(d2.P, d2.P.tracks[1]) == "#2f9c9a");
     // annuler / rétablir
     size_t n = doc.P.tracks[4].regions[0].notes.size();
     doc.edit("Note", [](Project& P) { P.tracks[4].regions[0].notes.push_back({0, 1, 60, 90}); });

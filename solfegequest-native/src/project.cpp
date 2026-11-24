@@ -43,16 +43,28 @@ std::string newId(char prefix) {
     return s;
 }
 
+const char* const kTrackColors16[9] = {"#a8223d", "#6d6d78", "#7a1530", "#9a9aa5", "#c44a60", "#4e4e58", "#8e2740", "#85858f", "#b5566a"};
+
 std::string trackColorFromLegacy(const std::string& c) {
-    static const char* autos[] = {"#ff6b5e", "#ff9f0a", "#ffd23f", "#5fd36a", "#4fd8c9", "#4aa3ff", "#a77bff", "#ff6fa8",
-                                  "#c2a27a", "#a8223d", "#6d6d78", "#7a1530", "#9a9aa5", "#c44a60", "#4e4e58", "#8e2740",
-                                  "#85858f", "#b5566a", "#2f7fd8", "#5856d6", "#e8891a", "#9b59d0", "#7f8ea3", "#c9a227"};
+    // palette vive d'avant la 1.6 → palette de la 1.6 (même correspondance que la 1.6) ;
+    // couleurs automatiques des versions 1.7, 1.8 et 2.0 (dont le gris neutre) → couleur automatique
+    static const char* old[] = {"#ff6b5e", "#ff9f0a", "#ffd23f", "#5fd36a", "#4fd8c9", "#4aa3ff", "#a77bff", "#ff6fa8", "#c2a27a"};
+    static const char* later[] = {"#2f7fd8", "#5856d6", "#e8891a", "#9b59d0", "#7f8ea3", "#c9a227", "#8e8e93"};
     std::string l = c;
     for (auto& ch : l) ch = char(tolower(ch));
-    if (l.empty()) return kNeutralTrack;
-    for (const char* a : autos)
-        if (l == a) return kNeutralTrack;
-    return c;
+    for (int i = 0; i < 9; ++i)
+        if (l == old[i]) return kTrackColors16[i];
+    for (const char* a : later)
+        if (l == a) return "";
+    return l;
+}
+
+std::string effectiveTrackColor(const Project& P, const Track& t) {
+    if (!t.color.empty()) return t.color;
+    size_t i = 0;
+    for (; i < P.tracks.size(); ++i)
+        if (&P.tracks[i] == &t || P.tracks[i].id == t.id) break;
+    return kTrackColors16[i % 9];
 }
 
 double Project::endBeat() const {
@@ -100,7 +112,7 @@ json toJson(const Project& p) {
         jt["mute"] = t.mute;
         jt["solo"] = t.solo;
         jt["arm"] = t.arm;
-        jt["color"] = t.color;
+        jt["color"] = effectiveTrackColor(p, t);   // toujours une couleur, comme la 1.6
         if (t.colorSet) jt["colorSet"] = true;
         json rg = json::array();
         for (auto& r : t.regions) {
@@ -157,7 +169,7 @@ Project fromJson(const json& j) {
             t.solo = get<bool>(jt, "solo", false);
             t.arm = get<bool>(jt, "arm", false);
             t.colorSet = get<bool>(jt, "colorSet", false);
-            t.color = get<std::string>(jt, "color", kNeutralTrack);
+            t.color = get<std::string>(jt, "color", "");
             if (!t.colorSet) t.color = trackColorFromLegacy(t.color);
             if (jt.contains("regions"))
                 for (auto& jr : jt["regions"]) {

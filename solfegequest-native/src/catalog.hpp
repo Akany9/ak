@@ -24,10 +24,15 @@ struct Progression {
     std::vector<int> degrees;  // degrés de la gamme (0 = I)
 };
 
+struct Lesson { std::string id, name; int minutes = 0; };
+
 struct Chapter {
-    std::string id, name, desc;
+    std::string id, name, desc, icon;  // icon : nom Lucide (voir chapterIcon)
     int lessons = 0;
+    std::vector<Lesson> list;
 };
+
+struct GlossEntry { std::string cat, term, desc, extra; };
 
 struct Catalog {
     std::vector<Instrument> instruments;
@@ -35,6 +40,9 @@ struct Catalog {
     std::vector<Loop> loops;
     std::vector<Progression> progs;
     std::vector<Chapter> chapters;
+    std::vector<GlossEntry> gloss;
+    int totalLessons() const;
+    static const char* chapterIcon(const std::string& lucide);  // nom Lucide → icône embarquée
     json demo;
 
     const Instrument* inst(const std::string& id) const;

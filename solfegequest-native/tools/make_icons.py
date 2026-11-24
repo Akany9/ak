@@ -30,6 +30,10 @@ ICONS = {
     'LAYOUT': 'layout-dashboard', 'EYE': 'eye', 'EYE_OFF': 'eye-off', 'TUNER': 'gauge', 'SPEAKER': 'speaker',
     'MORE': 'ellipsis', 'MAXIMIZE': 'maximize-2', 'MINIMIZE': 'minimize-2', 'LOOP': 'refresh-cw', 'ZAP': 'zap',
     'STEP': 'footprints', 'KEYS': 'keyboard',
+    # version 1.6 : programme du cours, barre du haut, Studio
+    'ACTIVITY': 'activity', 'CLOCK': 'clock', 'HASH': 'hash', 'TRENDING': 'trending-up', 'ARROW_UR': 'arrow-up-right',
+    'COMPASS': 'compass', 'AWARD': 'award', 'LIST': 'list', 'FOLDER': 'folder', 'SHARE': 'share', 'HELP': 'circle-help',
+    'PLUG': 'plug', 'SEARCH': 'search', 'SPARK': 'sparkles', 'PANEL_LEFT': 'panel-left', 'CIRCLE_PLAY': 'circle-play',
 }
 BASE = 0xEA00
 lines = ['// Généré par tools/make_icons.py — icônes Lucide (licence ISC) au format SVG. Ne pas modifier à la main.',

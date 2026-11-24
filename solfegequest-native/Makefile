@@ -1,6 +1,6 @@
 # Solfège Quest (C++20 / Dear ImGui) — make linux | make win   (make -j8 recommandé)
 IMGUI   := third_party/imgui
-SRC     := app comp_panels panels theme project catalog audio util assets skeuo svgicons piano
+SRC     := app comp_panels panels theme project catalog audio util assets skeuo svgicons piano screens
 IMSRC   := imgui imgui_draw imgui_tables imgui_widgets
 FLAGS   := -std=c++20 -O2 -Wall -Wno-unused-function -Wno-missing-field-initializers -Wno-format-truncation -Wno-unused-result \
            -DIMGUI_DEFINE_MATH_OPERATORS -I$(IMGUI)

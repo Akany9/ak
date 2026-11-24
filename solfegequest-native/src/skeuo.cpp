@@ -141,89 +141,35 @@ void sheen(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float alpha) {
 }
 
 void glass(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float shadow) {
-    float s = theme().scale;
-    bool clear = theme().glassClear;
-    if (shadow > 0) dropShadow(dl, a, b, rounding, 14 * s * shadow, clear ? 0.35f : 0.55f);
-    // corps : teinte graphite, plus ou moins opaque
-    gradientRect(dl, a, b, clear ? IM_COL32(78, 82, 96, 92) : IM_COL32(52, 54, 62, 236), clear ? IM_COL32(40, 42, 50, 120) : IM_COL32(30, 31, 36, 244), rounding);
-    material(dl, Mat::Grain, a, b, IM_COL32(255, 255, 255, clear ? 10 : 14), rounding, s);
-    // réfraction : bande claire le long des bords (lentille), plus marquée en haut
-    float e = 7 * s;
-    for (int i = 0; i < 4; ++i) {
-        float t = i / 3.f;
-        dl->AddRect(ImVec2(a.x + 1 + t * e, a.y + 1 + t * e), ImVec2(b.x - 1 - t * e, b.y - 1 - t * e), IM_COL32(255, 255, 255, int((clear ? 16 : 10) * (1 - t))),
-                    std::max(0.f, rounding - t * e), 0, 1.5f * s);
-    }
-    sheen(dl, a, b, rounding, clear ? 0.16f : 0.11f);
-    // reflet spéculaire en diagonale, coin haut gauche
-    {
-        int v0 = dl->VtxBuffer.Size;
-        float w = std::min(b.x - a.x, 260 * s);
-        dl->AddRectFilled(ImVec2(a.x + 2, a.y + 2), ImVec2(a.x + w, a.y + std::min(b.y - a.y, 90 * s)), IM_COL32_WHITE, std::max(0.f, rounding - 2), ImDrawFlags_RoundCornersTopLeft);
-        for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
-            ImDrawVert& v = dl->VtxBuffer[i];
-            float t = std::clamp(((v.pos.x - a.x) / w + (v.pos.y - a.y) / (90 * s)), 0.f, 1.f);
-            v.col = (v.col & 0x00ffffff) | (unsigned(255 * (clear ? 0.08f : 0.05f) * (1 - t)) << 24);
-        }
-    }
-    // bord : liseré lumineux en haut, sombre en bas (contraste net)
-    dl->AddRect(ImVec2(a.x - 0.5f, a.y - 0.5f), ImVec2(b.x + 0.5f, b.y + 0.5f), IM_COL32(0, 0, 0, 150), rounding + 0.5f, 0, 1);
-    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, clear ? 70 : 46), rounding, 0, 1);
-    dl->AddLine(ImVec2(a.x + rounding, a.y + 1), ImVec2(b.x - rounding, a.y + 1), IM_COL32(255, 255, 255, clear ? 120 : 90), 1);
+    // 1.6 : pas de verre, panneau plat
+    surface(dl, a, b, rounding, col::panel, col::panel, shadow);
 }
 
 void surface(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, ImU32 top, ImU32 bottom, float shadow) {
-    float s = theme().scale;
-    if (shadow > 0) dropShadow(dl, a, b, rounding, 12 * s * shadow, 0.55f);
+    // 1.6 : surface plate, fin liseré clair
+    (void)shadow;
     gradientRect(dl, a, b, top, bottom, rounding);
-    material(dl, Mat::Grain, a, b, IM_COL32(255, 255, 255, 10), rounding, s);
-    sheen(dl, a, b, rounding, 0.06f);
-    // liseré lumineux en haut (bord biseauté), contour sombre
-    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, 16), rounding, 0, 1.f);
-    float r = std::max(1.f, rounding);
-    dl->PathArcTo(ImVec2(a.x + r, a.y + r), r - 0.5f, IM_PI, IM_PI * 1.5f);
-    dl->PathArcTo(ImVec2(b.x - r, a.y + r), r - 0.5f, IM_PI * 1.5f, IM_PI * 2);
-    dl->PathStroke(IM_COL32(255, 255, 255, 40), 0, 1.f);
-    dl->AddRect(ImVec2(a.x - 0.5f, a.y - 0.5f), ImVec2(b.x + 0.5f, b.y + 0.5f), IM_COL32(0, 0, 0, 150), rounding + 0.5f, 0, 1.f);
+    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), col::border, rounding, 0, 1.f);
 }
 
 void well(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding) {
-    gradientRect(dl, a, b, IM_COL32(12, 12, 14, 255), IM_COL32(24, 24, 27, 255), rounding);
-    innerShadow(dl, a, b, rounding, 5 * theme().scale, 0.8f);
-    dl->AddLine(ImVec2(a.x + rounding, b.y + 0.5f), ImVec2(b.x - rounding, b.y + 0.5f), IM_COL32(255, 255, 255, 22));
+    dl->AddRectFilled(a, b, IM_COL32(28, 28, 30, 255), rounding);
+    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, 20), rounding, 0, 1.f);
 }
 
 void glossTile(ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 top, ImU32 bottom, float rounding) {
-    float h = b.y - a.y;
-    dropShadow(dl, a, b, rounding, h * 0.10f, 0.7f);
+    // tuile d'icône plate (1.6)
     gradientRect(dl, a, b, top, bottom, rounding);
-    // couches : halo intérieur clair en haut, plaque de verre en bas (profondeur des icônes de macOS 27)
-    float w = b.x - a.x, d = std::max(1.f, w * 0.06f);
-    dl->AddRectFilledMultiColor(ImVec2(a.x + d, b.y - h * 0.42f), ImVec2(b.x - d, b.y - d), IM_COL32(255, 255, 255, 0), IM_COL32(255, 255, 255, 0),
-                                IM_COL32(0, 0, 0, 34), IM_COL32(0, 0, 0, 34));
-    sheen(dl, a, b, rounding, 0.22f);
-    dl->AddRect(ImVec2(a.x + d * 0.5f, a.y + d * 0.5f), ImVec2(b.x - d * 0.5f, b.y - d * 0.5f), IM_COL32(255, 255, 255, 26), std::max(0.f, rounding - d * 0.5f), 0, std::max(1.f, d * 0.25f));
-    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, 56), rounding, 0, 1.f);
-    dl->AddRect(ImVec2(a.x - 0.5f, a.y - 0.5f), ImVec2(b.x + 0.5f, b.y + 0.5f), IM_COL32(0, 0, 0, 90), rounding + 0.5f, 0, 1.f);
 }
 
 void lcd(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding) {
-    float s = theme().scale;
-    gradientRect(dl, ImVec2(a.x - 1.5f * s, a.y - 1.5f * s), ImVec2(b.x + 1.5f * s, b.y + 1.5f * s), IM_COL32(8, 8, 10, 255), IM_COL32(40, 40, 44, 255), rounding + 1.5f * s);
-    gradientRect(dl, a, b, IM_COL32(20, 32, 48, 255), IM_COL32(10, 17, 28, 255), rounding);
-    innerShadow(dl, a, b, rounding, 6 * s, 0.6f);
-    dl->AddQuadFilled(ImVec2(a.x + 2, a.y + 2), ImVec2(a.x + (b.x - a.x) * 0.36f, a.y + 2), ImVec2(a.x + (b.x - a.x) * 0.26f, b.y - 2), ImVec2(a.x + 2, b.y - 2),
-                      IM_COL32(255, 255, 255, 6));
-    dl->AddLine(ImVec2(a.x + rounding, a.y + 1), ImVec2(b.x - rounding, a.y + 1), IM_COL32(255, 255, 255, 12));
+    // écran du transport de la 1.6 : noir mat, bord gris
+    dl->AddRectFilled(a, b, IM_COL32(12, 12, 14, 255), rounding);
+    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, 22), rounding, 0, 1.f);
 }
 
 void glowText(ImDrawList* dl, ImFont* f, float size, ImVec2 p, ImU32 col, const char* text) {
-    p = ImVec2(std::round(p.x), std::round(p.y));
-    ImU32 glow = (col & 0x00ffffff) | (28u << 24);
-    for (int dx = -1; dx <= 1; ++dx)
-        for (int dy = -1; dy <= 1; ++dy)
-            if (dx || dy) dl->AddText(f, size, ImVec2(p.x + dx, p.y + dy), glow, text);
-    dl->AddText(f, size, p, col, text);
+    dl->AddText(f, size, ImVec2(std::round(p.x), std::round(p.y)), col, text);
 }
 
 void ledMeter(ImDrawList* dl, ImVec2 a, ImVec2 b, float level, bool vertical) {
@@ -254,6 +200,7 @@ void ledMeter(ImDrawList* dl, ImVec2 a, ImVec2 b, float level, bool vertical) {
 // ------------------------------------------------------------------ widgets
 
 bool glossButton(const char* id, const char* label, bool active, ImVec2 size, bool round, const char* tip) {
+    // bouton plat de la 1.6 : gris foncé, liseré fin ; actif = couleur d'accent de l'écran
     float s = theme().scale;
     ImGui::PushID(id);
     ImVec2 a = ImGui::GetCursorScreenPos();
@@ -264,27 +211,13 @@ bool glossButton(const char* id, const char* label, bool active, ImVec2 size, bo
     bool held = ImGui::IsItemActive(), hov = ImGui::IsItemHovered(), dis = (ImGui::GetItemFlags() & ImGuiItemFlags_Disabled) != 0;
     ImVec2 b(a.x + size.x, a.y + size.y);
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    float r = round ? size.y * 0.5f : 8 * s;
-    ImU32 top, bot;
-    if (active) { top = IM_COL32(74, 150, 255, 255); bot = IM_COL32(18, 104, 230, 255); }
-    else { top = IM_COL32(76, 76, 82, 255); bot = IM_COL32(52, 52, 57, 255); }
-    if (hov && !held) { top = lighten(top, 0.07f); bot = lighten(bot, 0.05f); }
-    if (held) { top = darken(top, 0.18f); bot = darken(bot, 0.08f); }
-    if (!held) dropShadow(dl, a, b, r, 4 * s, active ? 0.55f : 0.45f);
-    if (active && !held) dropShadow(dl, a, b, r, 7 * s, 0.25f);
-    gradientRect(dl, a, b, top, bot, r);
-    if (!held) {
-        sheen(dl, a, b, r, active ? 0.16f : 0.08f);
-        dl->PathArcTo(ImVec2(a.x + r, a.y + r), r - 0.5f, IM_PI * 1.1f, IM_PI * 1.5f);
-        dl->PathArcTo(ImVec2(b.x - r, a.y + r), r - 0.5f, IM_PI * 1.5f, IM_PI * 1.9f);
-        dl->PathStroke(IM_COL32(255, 255, 255, active ? 90 : 50), 0, 1.f);   // arête supérieure éclairée
-    } else {
-        innerShadow(dl, a, b, r, 3 * s, 0.5f);
-    }
-    dl->AddRect(ImVec2(a.x - 0.5f, a.y - 0.5f), ImVec2(b.x + 0.5f, b.y + 0.5f), IM_COL32(0, 0, 0, 140), r + 0.5f, 0, 1.f);
-    // libellé centré au pixel près (les icônes SVG font partie de la police, à leur taille exacte)
-    ImU32 tc = dis ? IM_COL32(235, 235, 240, 90) : active ? IM_COL32_WHITE : IM_COL32(236, 236, 242, 255);
-    drawLabel(dl, ImVec2(a.x + size.x * 0.5f, a.y + size.y * 0.5f + (held ? 1 : 0)), tc, label, nullptr, IM_COL32(0, 0, 0, 110));
+    float r = round ? size.y * 0.5f : 7 * s;
+    ImU32 bg = active ? col::accent : hov && !dis ? IM_COL32(62, 62, 66, 255) : IM_COL32(44, 44, 46, 255);
+    if (held) bg = darken(bg, 0.12f);
+    dl->AddRectFilled(a, b, bg, r);
+    if (!active) dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, 20), r, 0, 1.f);
+    ImU32 tc = dis ? IM_COL32(235, 235, 240, 80) : IM_COL32(245, 245, 247, 255);
+    drawLabel(dl, ImVec2(a.x + size.x * 0.5f, a.y + size.y * 0.5f), tc, label);
     if (tip) tooltip(tip);
     ImGui::PopID();
     return pressed;
@@ -392,9 +325,7 @@ bool segmented(const char* id, const char* const* labels, int n, int* sel) {
         ImGui::PopID();
         ImVec2 p0(x, a.y + 2 * s), p1(x + ws[size_t(i)], b.y - 2 * s);
         if (*sel == i) {  // segment choisi : pastille en relief
-            dropShadow(dl, p0, p1, r - 2 * s, 3 * s, 0.6f);
-            gradientRect(dl, p0, p1, IM_COL32(104, 104, 110, 255), IM_COL32(78, 78, 84, 255), r - 2 * s);
-            dl->AddLine(ImVec2(p0.x + r, p0.y + 1), ImVec2(p1.x - r, p0.y + 1), IM_COL32(255, 255, 255, 60));
+            dl->AddRectFilled(p0, p1, IM_COL32(99, 99, 102, 255), r - 2 * s);   // segment choisi : pastille grise (1.6)
         } else if (hov) {
             dl->AddRectFilled(p0, p1, IM_COL32(255, 255, 255, 10), r - 2 * s);
         }

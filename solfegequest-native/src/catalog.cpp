@@ -18,6 +18,26 @@ const Instrument* Catalog::inst(const std::string& id) const {
     return nullptr;
 }
 
+int Catalog::totalLessons() const {
+    int n = 0;
+    for (auto& c : chapters) n += c.lessons;
+    return n;
+}
+
+const char* Catalog::chapterIcon(const std::string& n) {
+    if (n == "activity") return ICON_ACTIVITY;
+    if (n == "clock") return ICON_CLOCK;
+    if (n == "hash") return ICON_HASH;
+    if (n == "trending-up") return ICON_TRENDING;
+    if (n == "arrow-up-right") return ICON_ARROW_UR;
+    if (n == "layers") return ICON_CHORDS;
+    if (n == "volume-2") return ICON_VOLUME;
+    if (n == "book-open") return ICON_BOOK;
+    if (n == "headphones") return ICON_HEADPHONES;
+    if (n == "compass") return ICON_COMPASS;
+    return ICON_MUSIC;
+}
+
 const char* Catalog::icon(const std::string& instId) const {
     const Instrument* i = inst(instId);
     if (!i) return ICON_MUSIC;
@@ -76,7 +96,15 @@ void Catalog::load() {
         }
         if (!p.degrees.empty()) progs.push_back(p);
     }
-    for (auto& j : d["eduChapters"]) chapters.push_back({j.value("id", ""), j.value("n", ""), j.value("d", ""), int(j["lessons"].size())});
+    for (auto& j : d["eduChapters"]) {
+        Chapter c{j.value("id", ""), j.value("n", ""), j.value("d", ""), j.value("ic", "music"), int(j["lessons"].size()), {}};
+        for (auto& l : j["lessons"]) c.list.push_back({l.value("id", ""), l.value("n", ""), l.value("min", 0)});
+        chapters.push_back(std::move(c));
+    }
+    if (d.contains("gloss"))
+        for (auto& g : d["gloss"])
+            if (g.is_array() && g.size() >= 3)
+                gloss.push_back({g[0].get<std::string>(), g[1].get<std::string>(), g[2].get<std::string>(), g.size() > 3 && g[3].is_string() ? g[3].get<std::string>() : ""});
     demo = d["demo"];
 }
 

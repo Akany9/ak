@@ -156,10 +156,6 @@ void App::pianoWindow() {
         tooltip("Vélocité (C / V)");
     }
     ImGui::SameLine(0, 14 * s);
-    if (skeuo::glossButton("glass", ICON_DROPLET, theme().glassClear, ImVec2(bw, hh), false,
-                           theme().glassClear ? "Verre : clair (cliquer pour teinté)" : "Verre : teinté (cliquer pour clair)"))
-        theme().glassClear = !theme().glassClear;
-    ImGui::SameLine(0, 4 * s);
     if (skeuo::glossButton("hints", ICON_KEYS, piano.hints, ImVec2(bw, hh), false, "Afficher les lettres du clavier d'ordinateur")) piano.hints = !piano.hints;
     ImGui::SameLine(0, 4 * s);
     bool canStep = !doc.selRegion.empty();

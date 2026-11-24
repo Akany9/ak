@@ -1,7 +1,7 @@
 // Généré par tools/make_icons.py — icônes Lucide (licence ISC) au format SVG. Ne pas modifier à la main.
 #pragma once
 #define ICON_MIN 0xea00
-#define ICON_MAX 0xea49
+#define ICON_MAX 0xea59
 #define ICON_MUSIC "\xee\xa8\x80"
 #define ICON_MUSIC2 "\xee\xa8\x81"
 #define ICON_DRUM "\xee\xa8\x82"
@@ -76,3 +76,19 @@
 #define ICON_ZAP "\xee\xa9\x87"
 #define ICON_STEP "\xee\xa9\x88"
 #define ICON_KEYS "\xee\xa9\x89"
+#define ICON_ACTIVITY "\xee\xa9\x8a"
+#define ICON_CLOCK "\xee\xa9\x8b"
+#define ICON_HASH "\xee\xa9\x8c"
+#define ICON_TRENDING "\xee\xa9\x8d"
+#define ICON_ARROW_UR "\xee\xa9\x8e"
+#define ICON_COMPASS "\xee\xa9\x8f"
+#define ICON_AWARD "\xee\xa9\x90"
+#define ICON_LIST "\xee\xa9\x91"
+#define ICON_FOLDER "\xee\xa9\x92"
+#define ICON_SHARE "\xee\xa9\x93"
+#define ICON_HELP "\xee\xa9\x94"
+#define ICON_PLUG "\xee\xa9\x95"
+#define ICON_SEARCH "\xee\xa9\x96"
+#define ICON_SPARK "\xee\xa9\x97"
+#define ICON_PANEL_LEFT "\xee\xa9\x98"
+#define ICON_CIRCLE_PLAY "\xee\xa9\x99"

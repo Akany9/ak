@@ -61,6 +61,7 @@ private:
     unsigned dockId_ = 0;
     unsigned nodeLeft_ = 0, nodeCenter_ = 0, nodeBottom_ = 0, nodeBottomR_ = 0;
     bool needBuild_ = true;
+    int focusPianoRoll_ = 0;
     std::string pendingIni_;
     bool hasPending_ = false;
     double lastSave_ = 0;

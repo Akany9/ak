@@ -14,10 +14,10 @@ Panels::Panels() {
     //            clé          fenêtre                                  titre            icône           touche    F       maj    visible déf
     p[P_Playlist] = {"playlist", ICON_PLAYLIST "  Pistes###playlist", "Pistes", ICON_PLAYLIST, "F5", ImGuiKey_F5, false, true, true};
     p[P_PianoRoll] = {"pianoRoll", ICON_GRID "  Piano roll###pianoRoll", "Piano roll", ICON_GRID, "F7", ImGuiKey_F7, false, true, true};
-    p[P_Score] = {"score", ICON_SCORE "  Partition###score", "Partition", ICON_SCORE, "Maj+F7", ImGuiKey_F7, true, false, false};
-    p[P_Mixer] = {"mixer", ICON_MIXER "  Mixeur###mixer", "Mixeur", ICON_MIXER, "F9", ImGuiKey_F9, false, false, false};
+    p[P_Score] = {"score", ICON_SCORE "  Partition###score", "Partition", ICON_SCORE, "Maj+F7", ImGuiKey_F7, true, true, true};
+    p[P_Mixer] = {"mixer", ICON_MIXER "  Mixeur###mixer", "Mixeur", ICON_MIXER, "F9", ImGuiKey_F9, false, true, true};
     p[P_Browser] = {"browser", ICON_BROWSER "  Bibliothèque###browser", "Bibliothèque", ICON_BROWSER, "F8", ImGuiKey_F8, false, true, true};
-    p[P_Chords] = {"chords", ICON_CHORDS "  Accords###chords", "Accords", ICON_CHORDS, "F6", ImGuiKey_F6, false, false, false};
+    p[P_Chords] = {"chords", ICON_CHORDS "  Accords###chords", "Accords", ICON_CHORDS, "F6", ImGuiKey_F6, false, true, true};
 }
 
 bool Panels::anyVisible() const {
@@ -72,9 +72,10 @@ void Panels::buildDefault(unsigned id) {
     ImGui::DockBuilderAddNode(id, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(id, vp->WorkSize);
     ImGuiID left, rest, bottom, center, bottomR;
-    ImGui::DockBuilderSplitNode(id, ImGuiDir_Left, 0.19f, &left, &rest);
+    // disposition de la 1.6 : bibliothèque à gauche, pistes en haut, éditeurs en onglets en bas
+    ImGui::DockBuilderSplitNode(id, ImGuiDir_Left, 0.17f, &left, &rest);
     ImGui::DockBuilderSplitNode(rest, ImGuiDir_Down, 0.46f, &bottom, &center);
-    ImGui::DockBuilderSplitNode(bottom, ImGuiDir_Right, 0.36f, &bottomR, &bottom);
+    bottomR = bottom;
     ImGui::DockBuilderDockWindow(p[P_Browser].window, left);
     ImGui::DockBuilderDockWindow(p[P_Playlist].window, center);
     ImGui::DockBuilderDockWindow(p[P_PianoRoll].window, bottom);
@@ -87,6 +88,7 @@ void Panels::buildDefault(unsigned id) {
     nodeBottom_ = bottom;
     nodeBottomR_ = bottomR;
     needBuild_ = false;
+    focusPianoRoll_ = 10;   // onglet affiché par défaut en bas : le piano roll (1.6), après l'ancrage des autres onglets
 }
 
 void Panels::dockspace() {
@@ -144,6 +146,10 @@ bool Panels::begin(PanelId id, ImGuiWindowFlags extra) {
         s.wantFloat = false;
         s.wantFocus = true;
     }
+    if (id == P_PianoRoll && focusPianoRoll_ > 0) {
+        --focusPianoRoll_;
+        s.wantFocus = true;
+    }
     if (s.wantFocus) ImGui::SetNextWindowFocus();
     s.wantFocus = false;
     bool draw = ImGui::Begin(s.window, &s.visible, ImGuiWindowFlags_NoCollapse | extra);
@@ -181,20 +187,14 @@ void Panels::toggleBar() {
     for (int i = 0; i < P_Count; ++i) {
         PanelState& s = p[i];
         ImGui::PushID(i);
-        std::string label = std::string(s.icon) + "  " + s.title;
+        // 1.6 : boutons en icônes seules ; actif = couleur d'accent
         std::string tip = std::string(s.visible ? "Masquer" : "Afficher") + " : " + s.title + " (" + s.shortcut + ")";
-        float bw = ImGui::CalcTextSize(label.c_str()).x + 22 * theme().scale;
-        if (skeuo::glossButton(s.key, label.c_str(), s.visible, ImVec2(bw, ImGui::GetFrameHeight() + 2 * theme().scale), false, tip.c_str())) toggle(PanelId(i));
+        float bh = 30 * theme().scale;
+        if (skeuo::glossButton(s.key, s.icon, s.visible, ImVec2(bh, bh), false, tip.c_str())) toggle(PanelId(i));
         ImGui::PopID();
         ImGui::SameLine();
     }
-    ImGui::Dummy(ImVec2(6 * theme().scale, 1));
-    ImGui::SameLine();
-    if (skeuo::glossButton("dockall", ICON_DOCK, false, ImVec2(ImGui::GetFrameHeight() + 2 * theme().scale, ImGui::GetFrameHeight() + 2 * theme().scale), false, "Tout ancrer dans la grille")) dockAll();
-    ImGui::SameLine();
-    if (skeuo::glossButton("floatall", ICON_DETACH, false, ImVec2(ImGui::GetFrameHeight() + 2 * theme().scale, ImGui::GetFrameHeight() + 2 * theme().scale), false, "Tout passer en fenêtres flottantes")) floatAll();
-    ImGui::SameLine();
-    if (skeuo::glossButton("reset", ICON_RESET, false, ImVec2(ImGui::GetFrameHeight() + 2 * theme().scale, ImGui::GetFrameHeight() + 2 * theme().scale), false, "Réinitialiser l'agencement")) resetLayout();
+    if (skeuo::glossButton("reset", ICON_RESET, false, ImVec2(30 * theme().scale, 30 * theme().scale), false, "Disposition de la 1.6 (réinitialiser)")) resetLayout();
     ImGui::PopStyleVar();
 }
 
@@ -212,11 +212,12 @@ json Panels::save() const {
     j["ini"] = std::string(ini, n);
     for (auto& s : p) j["panels"][s.key] = {{"visible", s.visible}};
     j["nodes"] = {nodeLeft_, nodeCenter_, nodeBottom_, nodeBottomR_};
+    j["layout"] = "1.6";
     return j;
 }
 
 void Panels::load(const json& j) {
-    if (!j.is_object()) return;
+    if (!j.is_object() || j.value("layout", "") != "1.6") return;  // disposition d'une autre version : on garde celle de la 1.6
     if (j.contains("panels"))
         for (auto& s : p)
             if (j["panels"].contains(s.key)) s.visible = j["panels"][s.key].value("visible", s.visible);
@@ -248,7 +249,7 @@ void Panels::persistIfNeeded() {
     std::string s = save().dump();
     if (s == lastSaved_) return;
     lastSaved_ = s;
-    writeFile(joinPath(dataDir(), "workspace.json"), s);
+    writeFile(joinPath(dataDir(), "workspace-1.6.json"), s);
 }
 
 }  // namespace sq

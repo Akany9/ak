@@ -1,8 +1,41 @@
-# Solfège Quest — version native C++20 / Dear ImGui
+# Solfège Quest 1.6.2 — version native C++20 / Dear ImGui
 
-Application de bureau **entièrement native** (plus de HTML, plus de navigateur) : une fenêtre Win32 + Direct3D 11,
+Application de bureau **entièrement en C++** : aucun navigateur, aucun Chromium, aucun HTML. Une fenêtre Win32 + Direct3D 11,
 interface Dear ImGui (branche *docking*), audio miniaudio (WASAPI). `SolfegeQuest.exe` est autonome (≈ 8 Mo) :
 échantillons, polices et données sont embarqués en ressources.
+
+## Version 1.6.2 : l'interface de la 1.6.0, en C++ natif
+
+Tout reprend la **v1.6.0** (thème sombre façon GarageBand, accueil en carrousel), sauf deux points :
+
+- **Échelle de la version 2.0** : réglable par écran et mémorisée (Composition à 85 % par défaut), de 70 % à 140 % par pas de 5 %.
+  Commande « − 85 % + » dans la barre du haut (en bas à droite sur l'accueil) ; clic sur le pourcentage = 100 % ;
+  Ctrl+Alt+= / Ctrl+Alt+− / Ctrl+Alt+0. L'échelle réglée dans la 2.0 est reprise au premier lancement.
+- **Choix de la couleur des pistes (Composition)** : clic sur la barre de couleur à gauche d'une piste, ou clic droit
+  → « Couleur de la piste… ». Palette de 14 couleurs, « Aucune (gris neutre) », « Couleur automatique » (palette de la 1.6),
+  couleur personnalisée. Annulable (Ctrl+Z) et enregistrée dans le projet.
+
+Ce qui reprend la 1.6 :
+
+- **Couleur d'accent par écran** : bleu (accueil, Studio), rose-rouge (Composition), vert (Éducation) ; boutons plats.
+- **Barre du haut** : « ‹ Accueil », icône et titre de l'écran, pastille du projet (ou niveau et XP en Éducation),
+  sélecteur ÉDUCATION / STUDIO / COMPOSITION, échelle, clavier numérique.
+- **Transport** : boutons au centre et écran noir MESURE · TEMPS · TEMPO · TONALITÉ · MESURE (tempo : glisser ;
+  tonalité et chiffrage : cliquer) ; annuler / rétablir et « Enregistrer » à droite.
+- **Accueil** : carrousel de cartes plates (tuile d'icône grise, titre, description, « Entrer › », raccourcis),
+  « Reprendre le projet », « Clavier numérique ».
+- **Composition** : bibliothèque à gauche, pistes en haut, éditeurs en onglets en bas (Piano roll, Partition, Mixeur, Accords).
+  Pistes colorées comme en 1.6 : carré d'icône et barre de la couleur de la piste, M / S / R, volume couleur d'accent,
+  régions pleines de la couleur de la piste ; notes du piano roll nommées.
+- **Éducation** : onglets Cours / Exercices / Outils / Partitions / Glossaire ; programme en barre latérale,
+  carte « Commencer », grille des chapitres, page de chapitre avec ses leçons ; glossaire complet (recherche, catégories).
+- **Studio** : barre latérale SOURCE / MIXAGE / OUTILS ; Instruments ; console (tranches sombres, panoramique, fader,
+  vumètre, muet / solo) avec deux vumètres à aiguille.
+
+Pas encore portés en C++ (la page le dit clairement) : contenu interactif des leçons, Exercices, Outils, Partitions,
+Pédalier & amplis, Enregistrement, Boîte à rythmes, Accordeur.
+
+La disposition est enregistrée dans `workspace-1.6.json` (celle de la 2.0 n'est pas reprise).
 
 ## Construire
 

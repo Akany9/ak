@@ -66,6 +66,11 @@ public:
     void saveProject(bool as);
     void addTrack(const std::string& inst, const std::string& name = "");
     void go(Mode m);
+    void applyModeAccent();
+    int eduTab = 0;        // Éducation : Cours, Exercices, Outils, Partitions, Glossaire
+    int eduChapter = -1;   // chapitre ouvert (-1 : sommaire)
+    int studioPage = 4;    // Studio : 0 Instruments … 4 Console, 5 Accordeur
+    char glossQuery[64] = {};
 
     // écrans
     void topBar(const char* title, const char* icon, bool unified = false);

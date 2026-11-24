@@ -30,7 +30,7 @@ static ImFont* addFont(Asset a, float size, bool withIcons, const ImWchar* range
     ImFont* f = io.Fonts->AddFontFromMemoryTTF(const_cast<uint8_t*>(b.data), int(b.size), size, &cfg, ranges);
     if (symbols) {
         // ♭ ♮ ♯ et flèches (DejaVu Sans), absents d'Inter et de Fraunces
-        static const ImWchar symRanges[] = {0x2022, 0x2026, 0x2190, 0x21BB, 0x266D, 0x266F, 0};
+        static const ImWchar symRanges[] = {0x2022, 0x2026, 0x2190, 0x21BB, 0x2248, 0x2248, 0x2264, 0x2265, 0x266D, 0x266F, 0};
         Blob sb = asset(Asset::Symbols);
         ImFontConfig sc;
         sc.FontDataOwnedByAtlas = false;
@@ -47,12 +47,14 @@ static ImFont* addFont(Asset a, float size, bool withIcons, const ImWchar* range
 void Theme::buildFonts() {
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->Clear();
-    static const ImWchar latin[] = {0x0020, 0x00FF, 0x0100, 0x017F, 0x2000, 0x206F, 0x2190, 0x21FF, 0x2190, 0x2199, 0x266D, 0x266F, 0x2212, 0x2212, 0};
+    static const ImWchar latin[] = {0x0020, 0x00FF, 0x0100, 0x017F, 0x2000, 0x206F, 0x2190, 0x21FF, 0x2190, 0x2199, 0x266D, 0x266F, 0x2212, 0x2212, 0x2248, 0x2248, 0x2264, 0x2265, 0};
     static const ImWchar smufl[] = {0xE000, 0xF8FF, 0};
     float s = scale;
     f.ui = addFont(Asset::Inter, 15 * s, true, latin);
     f.bold = addFont(Asset::InterSemiBold, 15 * s, true, latin);
     f.small = addFont(Asset::Inter, 12.5f * s, true, latin);
+    f.big = addFont(Asset::InterSemiBold, 22 * s, true, latin);
+    f.tiny = addFont(Asset::InterSemiBold, 10.5f * s, false, latin);
     f.title = addFont(Asset::Fraunces, 26 * s, false, latin);
     f.hero = addFont(Asset::Fraunces, 46 * s, false, latin);
     f.icons = f.ui;  // les grandes icônes sont tracées en vectoriel (svg::draw)
@@ -63,6 +65,20 @@ void Theme::buildFonts() {
     svg::rasterizePending();
     fontsDirty = false;
     applyStyle();
+}
+
+void Theme::setAccent(ImU32 c) {
+    col::accent = c;
+    ImVec4 v = ImGui::ColorConvertU32ToFloat4(c);
+    col::accentHi = ImGui::ColorConvertFloat4ToU32(ImVec4(std::min(1.f, v.x + 0.12f), std::min(1.f, v.y + 0.12f), std::min(1.f, v.z + 0.12f), 1));
+    if (!ImGui::GetCurrentContext()) return;
+    ImVec4* k = ImGui::GetStyle().Colors;
+    for (ImGuiCol i : {ImGuiCol_SeparatorHovered, ImGuiCol_SeparatorActive, ImGuiCol_ResizeGripHovered, ImGuiCol_ResizeGripActive,
+                       ImGuiCol_TabSelectedOverline, ImGuiCol_PlotHistogram, ImGuiCol_NavHighlight})
+        k[i] = v;
+    k[ImGuiCol_DockingPreview] = ImVec4(v.x, v.y, v.z, 0.35f);
+    k[ImGuiCol_TextSelectedBg] = ImVec4(v.x, v.y, v.z, 0.3f);
+    k[ImGuiCol_SliderGrab] = ImVec4(1, 1, 1, 1);
 }
 
 void Theme::applyStyle() {
@@ -94,8 +110,8 @@ void Theme::applyStyle() {
     k[ImGuiCol_TextDisabled] = c(col::ink3);
     k[ImGuiCol_WindowBg] = c(col::panel);
     k[ImGuiCol_ChildBg] = c(IM_COL32(0, 0, 0, 0));
-    k[ImGuiCol_PopupBg] = c(col::rgb(40, 40, 44, 246));
-    k[ImGuiCol_Border] = c(col::rgb(255, 255, 255, 30));   // bords plus contrastés (macOS 27)
+    k[ImGuiCol_PopupBg] = c(col::rgb(44, 44, 46, 250));
+    k[ImGuiCol_Border] = c(col::border);
     k[ImGuiCol_FrameBg] = c(col::rgb(28, 28, 30));
     k[ImGuiCol_FrameBgHovered] = c(col::rgb(36, 36, 39));
     k[ImGuiCol_FrameBgActive] = c(col::rgb(44, 44, 47));
@@ -122,13 +138,13 @@ void Theme::applyStyle() {
     k[ImGuiCol_ResizeGrip] = c(col::rgb(255, 255, 255, 20));
     k[ImGuiCol_ResizeGripHovered] = c(col::accent);
     k[ImGuiCol_ResizeGripActive] = c(col::accent);
-    k[ImGuiCol_Tab] = c(col::rgb(30, 30, 33));
-    k[ImGuiCol_TabHovered] = c(col::rgb(58, 58, 62));
-    k[ImGuiCol_TabSelected] = c(col::rgb(46, 46, 50));
+    k[ImGuiCol_Tab] = c(col::rgb(38, 38, 40));
+    k[ImGuiCol_TabHovered] = c(col::rgb(72, 72, 74));
+    k[ImGuiCol_TabSelected] = c(col::rgb(99, 99, 102));     // onglet choisi : pastille grise (1.6)
     k[ImGuiCol_TabSelectedOverline] = c(col::accent);
-    k[ImGuiCol_TabDimmed] = c(col::rgb(26, 26, 29));
-    k[ImGuiCol_TabDimmedSelected] = c(col::rgb(38, 38, 42));
-    k[ImGuiCol_TabDimmedSelectedOverline] = c(col::rgb(0, 0, 0, 0));  // seul le panneau actif est souligné (fenêtre active plus distincte)
+    k[ImGuiCol_TabDimmed] = c(col::rgb(38, 38, 40));
+    k[ImGuiCol_TabDimmedSelected] = c(col::rgb(72, 72, 74));
+    k[ImGuiCol_TabDimmedSelectedOverline] = c(col::rgb(0, 0, 0, 0));
     k[ImGuiCol_DockingPreview] = c(col::rgb(10, 132, 255, 90));
     k[ImGuiCol_DockingEmptyBg] = c(col::bg0);
     k[ImGuiCol_PlotHistogram] = c(col::accent);
@@ -137,6 +153,7 @@ void Theme::applyStyle() {
     k[ImGuiCol_ModalWindowDimBg] = c(col::rgb(0, 0, 0, 120));
     st.ScaleAllSizes(scale);
     ImGui::GetStyle() = st;
+    setAccent(col::accent);
 }
 
 void gradientRect(ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 top, ImU32 bottom, float rounding) {

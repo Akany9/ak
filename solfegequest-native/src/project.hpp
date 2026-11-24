@@ -35,7 +35,7 @@ struct Track {
     std::string id, name, kind = "inst", inst = "grand";
     float vol = 0.78f, pan = 0;
     bool mute = false, solo = false, arm = false;
-    std::string color = kNeutralTrack;  // couleur facultative : neutre si !colorSet
+    std::string color;                  // vide : couleur automatique (palette de la 1.6)
     bool colorSet = false;
     std::vector<Region> regions;
     json extra = json::object();
@@ -63,7 +63,11 @@ struct Project {
 json toJson(const Project& p);
 Project fromJson(const json& j);
 std::string newId(char prefix);
-std::string trackColorFromLegacy(const std::string& c);  // couleurs automatiques → neutre
+std::string trackColorFromLegacy(const std::string& c);  // anciennes palettes → palette de la 1.6
+// Couleur affichée d'une piste : celle choisie par l'utilisateur, sinon celle enregistrée par la 1.6,
+// sinon la couleur automatique de la 1.6 selon le rang de la piste.
+std::string effectiveTrackColor(const Project& P, const Track& t);
+extern const char* const kTrackColors16[9];
 
 // Projet courant + historique (annuler / rétablir) + sélection.
 class Doc {

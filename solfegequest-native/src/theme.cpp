@@ -94,8 +94,8 @@ void Theme::applyStyle() {
     k[ImGuiCol_TextDisabled] = c(col::ink3);
     k[ImGuiCol_WindowBg] = c(col::panel);
     k[ImGuiCol_ChildBg] = c(IM_COL32(0, 0, 0, 0));
-    k[ImGuiCol_PopupBg] = c(col::rgb(44, 44, 46, 250));
-    k[ImGuiCol_Border] = c(col::sep);
+    k[ImGuiCol_PopupBg] = c(col::rgb(40, 40, 44, 246));
+    k[ImGuiCol_Border] = c(col::rgb(255, 255, 255, 30));   // bords plus contrastés (macOS 27)
     k[ImGuiCol_FrameBg] = c(col::rgb(28, 28, 30));
     k[ImGuiCol_FrameBgHovered] = c(col::rgb(36, 36, 39));
     k[ImGuiCol_FrameBgActive] = c(col::rgb(44, 44, 47));
@@ -128,6 +128,7 @@ void Theme::applyStyle() {
     k[ImGuiCol_TabSelectedOverline] = c(col::accent);
     k[ImGuiCol_TabDimmed] = c(col::rgb(26, 26, 29));
     k[ImGuiCol_TabDimmedSelected] = c(col::rgb(38, 38, 42));
+    k[ImGuiCol_TabDimmedSelectedOverline] = c(col::rgb(0, 0, 0, 0));  // seul le panneau actif est souligné (fenêtre active plus distincte)
     k[ImGuiCol_DockingPreview] = c(col::rgb(10, 132, 255, 90));
     k[ImGuiCol_DockingEmptyBg] = c(col::bg0);
     k[ImGuiCol_PlotHistogram] = c(col::accent);
@@ -150,6 +151,50 @@ void tooltip(const char* text) {
     if (text && *text && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", text);
 }
 
+static bool isIcon(unsigned cp) { return cp >= 0xEA00 && cp < 0xEB00; }
+
+ImVec2 labelSize(const char* label, const char* end) {
+    if (!end) end = ImGui::FindRenderedTextEnd(label);
+    ImFont* f = ImGui::GetFont();
+    float fs = ImGui::GetFontSize();
+    unsigned cp = 0;
+    int n = label < end ? ImTextCharFromUtf8(&cp, label, end) : 0;
+    const ImFontGlyph* g = n && isIcon(cp) ? f->FindGlyph(ImWchar(cp)) : nullptr;
+    if (!g) return f->CalcTextSizeA(fs, FLT_MAX, 0, label, end);
+    float k = fs / f->FontSize;
+    ImVec2 rs = f->CalcTextSizeA(fs, FLT_MAX, 0, label + n, end);
+    return ImVec2((g->X1 - g->X0) * k + rs.x, fs);
+}
+
+void drawLabel(ImDrawList* dl, ImVec2 c, ImU32 col, const char* label, const char* end, ImU32 shadow) {
+    if (!end) end = ImGui::FindRenderedTextEnd(label);
+    if (label >= end) return;
+    ImFont* f = ImGui::GetFont();
+    float fs = ImGui::GetFontSize();
+    auto put = [&](ImVec2 p, const char* a, const char* b) {
+        if (shadow) dl->AddText(f, fs, ImVec2(p.x, p.y + 1), shadow, a, b);
+        dl->AddText(f, fs, p, col, a, b);
+    };
+    unsigned cp = 0;
+    int n = ImTextCharFromUtf8(&cp, label, end);
+    const ImFontGlyph* g = isIcon(cp) ? f->FindGlyph(ImWchar(cp)) : nullptr;
+    if (!g) {
+        ImVec2 ts = f->CalcTextSizeA(fs, FLT_MAX, 0, label, end);
+        put(ImVec2(std::round(c.x - ts.x / 2), std::round(c.y - ts.y / 2)), label, end);
+        return;
+    }
+    float k = fs / f->FontSize;
+    const char* rest = label + n;
+    float iw = (g->X1 - g->X0) * k;
+    ImVec2 rs = rest < end ? f->CalcTextSizeA(fs, FLT_MAX, 0, rest, end) : ImVec2(0, 0);
+    float x0 = c.x - (iw + rs.x) / 2;
+    float ty = std::round(c.y - fs / 2);
+    // icône seule : centre exact ; avec texte : centre optique des minuscules et capitales (≈ 54 % de la ligne)
+    float iy = rest < end ? ty + fs * 0.54f : c.y;
+    put(ImVec2(std::round(x0 - g->X0 * k), std::round(iy - (g->Y0 + g->Y1) * 0.5f * k)), label, rest);
+    if (rest < end) put(ImVec2(std::round(x0 + iw), ty), rest, end);
+}
+
 bool iconButton(const char* id, const char* icon, const char* tip, bool active, ImVec2 size) {
     ImGui::PushID(id);
     float h = ImGui::GetFrameHeight();
@@ -158,7 +203,11 @@ bool iconButton(const char* id, const char* icon, const char* tip, bool active, 
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(col::accent));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(col::accentHi));
     }
-    bool r = ImGui::Button(icon, size);
+    bool r = ImGui::Button("##ib", size);
+    {
+        ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        drawLabel(ImGui::GetWindowDrawList(), ImVec2((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f), ImGui::GetColorU32(ImGuiCol_Text), icon);
+    }
     if (active) ImGui::PopStyleColor(2);
     tooltip(tip);
     ImGui::PopID();
@@ -173,7 +222,14 @@ bool pillButton(const char* label, bool active, const char* tip) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(col::seg));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(col::ctl));
     }
-    bool r = ImGui::Button(label);
+    const char* le = ImGui::FindRenderedTextEnd(label);
+    ImVec2 ls = labelSize(label, le);
+    ImVec2 pad = ImGui::GetStyle().FramePadding;
+    ImGui::PushID(label);
+    bool r = ImGui::Button("##pill", ImVec2(std::round(ls.x + pad.x * 2), ImGui::GetFrameHeight()));
+    ImGui::PopID();
+    ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+    drawLabel(ImGui::GetWindowDrawList(), ImVec2((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f), ImGui::GetColorU32(ImGuiCol_Text), label, le);
     ImGui::PopStyleColor(2);
     tooltip(tip);
     return r;

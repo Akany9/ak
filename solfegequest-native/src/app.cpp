@@ -614,8 +614,11 @@ void App::eduScreen() {
     for (size_t i = 0; i < chs.size(); ++i) {
         if (i % size_t(cols)) ImGui::SameLine(0, gap);
         ImVec2 a = ImGui::GetCursorScreenPos(), b(a.x + cw, a.y + ch);
-        skeuo::surface(dl, a, b, 14 * s, col::rgb(56, 56, 61), col::rgb(40, 40, 44));
         ImU32 t = tints[i % 11];
+        ImVec2 mp = ImGui::GetIO().MousePos;
+        bool hovCard = mp.x >= a.x && mp.x < b.x && mp.y >= a.y && mp.y < b.y && ImGui::IsWindowHovered();
+        skeuo::glass(dl, a, b, Theme::kRadius * s, hovCard ? 1.6f : 1.f);   // carte en verre (macOS 27)
+        skeuo::tintTop(dl, a, b, Theme::kRadius * s, (t & 0x00ffffffu) | ((hovCard ? 34u : 18u) << 24), 0.55f);
         float cx = std::round(a.x + cw / 2), bs = 34 * s;
         skeuo::glossTile(dl, ImVec2(cx - bs / 2, a.y + 14 * s), ImVec2(cx + bs / 2, a.y + 14 * s + bs), mixColor(t, IM_COL32(255, 255, 255, 255), 0.3f), t, 9 * s);
         ImFont* bf = theme().f.bold;
@@ -690,15 +693,28 @@ void App::homeScreen() {
         if (b.x < o.x || a.x > o.x + W) continue;
         bool cur = i == homeCard;
         float alpha = cur ? 1.f : 0.5f;
-        skeuo::surface(dl, a, b, 24 * s, mixColor(col::rgb(58, 58, 63), c.tint, 0.10f), col::rgb(36, 36, 40), 2.f);
+        skeuo::glass(dl, a, b, 2 * Theme::kRadius * s, 2.f);   // carte en verre teinté (macOS 27)
+        skeuo::tintTop(dl, a, b, 2 * Theme::kRadius * s, (c.tint & 0x00ffffffu) | (22u << 24), 0.6f);
         // illustration : tuile d'icône en dégradé
         float tile = std::min(cardH * 0.48f, 220 * s);
-        ImVec2 ta(a.x + cardW * 0.2f - tile / 2, a.y + cardH * 0.36f - tile / 2);
+        float midY = a.y + cardH * 0.37f;   // axe horizontal commun à la tuile et au texte
+        ImVec2 ta(std::round(a.x + cardW * 0.24f - tile / 2), std::round(midY - tile / 2));
         skeuo::glossTile(dl, ta, ImVec2(ta.x + tile, ta.y + tile), c.c0, c.c1, tile * 0.22f);
         svg::drawCentered(dl, c.icon, ImVec2(ta.x + tile / 2, ta.y + tile / 2 + 1.5f * s), tile * 0.5f, IM_COL32(0, 0, 0, 60));   // ombre
         svg::drawCentered(dl, c.icon, ImVec2(ta.x + tile / 2, ta.y + tile / 2), tile * 0.5f, IM_COL32_WHITE);
         // texte
-        float tx0 = a.x + cardW * 0.42f, tw0 = cardW * 0.52f, yy = a.y + cardH * 0.14f;
+        float tx0 = a.x + cardW * 0.44f, tw0 = cardW * 0.50f;
+        float yy;
+        {   // hauteur du bloc de texte, pour le centrer sur l'axe de la tuile
+            ImFont* hf = theme().f.hero;
+            ImVec2 hs = hf->CalcTextSizeA(hf->FontSize, FLT_MAX, 0, c.title);
+            float tk0 = std::min(1.f, tw0 / hs.x);
+            ImFont* uf = theme().f.ui;
+            float dfs = uf->FontSize * 1.1f;
+            float dh = uf->CalcTextSizeA(dfs, FLT_MAX, tw0 * 0.86f, c.desc).y + 4 * s;
+            float blockH = 22 * s + hs.y * tk0 + 14 * s + dh + 10 * s + ImGui::GetFrameHeight();
+            yy = std::round(midY - blockH / 2);
+        }
         ImGui::PushFont(theme().f.small);
         ImVec2 ss = ImGui::CalcTextSize(c.sub);
         dl->AddText(ImVec2(tx0 + (tw0 - ss.x) / 2, yy), col::ink3, c.sub);
@@ -710,12 +726,18 @@ void App::homeScreen() {
         ImGui::PopFont();
         float descH = centeredText(dl, theme().f.ui, theme().f.ui->FontSize * 1.1f, tx0 + tw0 / 2, yy + 22 * s + ts.y * tk + 14 * s, tw0 * 0.86f, col::ink2, c.desc);
         // « Entrer › »
-        ImGui::SetCursorScreenPos(ImVec2(std::round(tx0 + tw0 / 2 - 50 * s), std::round(std::min(a.y + cardH * 0.64f, yy + 22 * s + ts.y * tk + 24 * s + descH))));
+        ImGui::SetCursorScreenPos(ImVec2(std::round(tx0 + tw0 / 2 - 50 * s), std::round(yy + 22 * s + ts.y * tk + 24 * s + descH)));
         ImGui::PushID(i);
         ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 14));
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(col::link));
-        if (ImGui::Button("Entrer " ICON_CHEVRON_RIGHT, ImVec2(100 * s, 0))) cur ? go(c.m) : (void)(homeCard = i);
+        if (ImGui::Button("##enter", ImVec2(100 * s, 0))) cur ? go(c.m) : (void)(homeCard = i);
+        {
+            ImVec2 ea = ImGui::GetItemRectMin(), eb = ImGui::GetItemRectMax();
+            const char* el = "Entrer " ICON_CHEVRON_RIGHT;   // texte puis chevron, centrés ensemble
+            ImVec2 es = ImGui::CalcTextSize(el);
+            dl->AddText(ImVec2(std::round((ea.x + eb.x - es.x) / 2), std::round((ea.y + eb.y - es.y) / 2)), col::link, el);
+        }
         ImGui::PopStyleColor(3);
         // séparateur + raccourcis
         float sy = a.y + cardH * 0.74f;
@@ -750,7 +772,7 @@ void App::homeScreen() {
             }
         }
         ImGui::PopID();
-        if (!cur) dl->AddRectFilled(a, b, IM_COL32(18, 18, 20, int(255 * (1 - alpha) * 0.9f)), 26 * s);
+        if (!cur) dl->AddRectFilled(a, b, IM_COL32(18, 18, 20, int(255 * (1 - alpha) * 0.9f)), 2 * Theme::kRadius * s);
         // clic sur une carte voisine : la ramener au centre
         if (!cur) {
             ImGui::SetCursorScreenPos(a);
@@ -770,21 +792,25 @@ void App::homeScreen() {
         ImGui::PopID();
     }
     // pied : reprendre le projet, version
-    ImGui::SetCursorScreenPos(ImVec2(o.x + W / 2 - 170 * s, dy + 24 * s));
     std::string resume = std::string(ICON_PLAY "  Reprendre « ") + doc.P.name + " »";
-    if (skeuo::glossButton("resume", resume.c_str(), true, ImVec2(ImGui::CalcTextSize(resume.c_str()).x + 30 * s, ImGui::GetFrameHeight() + 4 * s))) go(Mode::Comp);
+    const char* ver = "v" SQ_VERSION_STR " · C++20 / Dear ImGui";
+    float bh = ImGui::GetFrameHeight() + 4 * s, sp = ImGui::GetStyle().ItemSpacing.x;
+    float wRes = std::round(labelSize(resume.c_str()).x + 30 * s), wPia = std::round(labelSize(ICON_PIANO "  Piano").x + 28 * s), wSc = bh;
+    float wVer = ImGui::CalcTextSize(ver).x;
+    float rowW = wRes + sp + wPia + sp + wSc + 2 * s + wSc + sp + wVer;
+    float rowY = dy + 24 * s;
+    ImGui::SetCursorScreenPos(ImVec2(std::round(o.x + (W - rowW) / 2), rowY));   // rangée centrée
+    if (skeuo::glossButton("resume", resume.c_str(), true, ImVec2(wRes, bh))) go(Mode::Comp);
     ImGui::SameLine();
-    if (skeuo::glossButton("homepiano", ICON_PIANO "  Piano", piano.open, ImVec2(ImGui::CalcTextSize(ICON_PIANO "  Piano").x + 28 * s, ImGui::GetFrameHeight() + 4 * s),
-                           false, "Piano flottant (Ctrl+K)"))
-        piano.open = !piano.open;
+    if (skeuo::glossButton("homepiano", ICON_PIANO "  Piano", piano.open, ImVec2(wPia, bh), false, "Piano flottant (Ctrl+K)")) piano.open = !piano.open;
     ImGui::SameLine();
     float& sc = gScale[0];
-    if (ImGui::Button(ICON_MINUS "##hs")) { sc = std::max(0.7f, sc - 0.05f); theme().setUserScale(sc); }
-    ImGui::SameLine(0, 2);
-    if (ImGui::Button(ICON_PLUS "##hp")) { sc = std::min(1.4f, sc + 0.05f); theme().setUserScale(sc); }
-    tooltip("Échelle de l'accueil");
+    if (skeuo::glossButton("hs", ICON_MINUS, false, ImVec2(wSc, bh), false, "Réduire l'échelle de l'accueil")) { sc = std::max(0.7f, sc - 0.05f); theme().setUserScale(sc); }
+    ImGui::SameLine(0, 2 * s);
+    if (skeuo::glossButton("hp", ICON_PLUS, false, ImVec2(wSc, bh), false, "Agrandir l'échelle de l'accueil")) { sc = std::min(1.4f, sc + 0.05f); theme().setUserScale(sc); }
     ImGui::SameLine();
-    ImGui::TextDisabled("v" SQ_VERSION_STR " · C++20 / Dear ImGui");
+    ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, rowY + (bh - ImGui::GetTextLineHeight()) / 2));
+    ImGui::TextDisabled("%s", ver);
     ImGui::End();
 }
 

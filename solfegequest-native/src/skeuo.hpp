@@ -26,6 +26,7 @@ void innerShadow(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float size,
 void surface(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, ImU32 top, ImU32 bottom, float shadow = 1.f);
 // Creux (champ, rainure, écran) : fond sombre, ombre interne, reflet en bas.
 void well(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding);
+void tintTop(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, ImU32 col, float frac = 0.5f);  // teinte en haut, fondue vers le bas
 void sheen(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float alpha = 0.10f);       // lumière douce en haut
 void glossTile(ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 top, ImU32 bottom, float rounding);  // tuile d'icône
 // Verre façon macOS 27 : réfraction régulière, bord lumineux, contraste renforcé ; teinté ou clair (theme().glassClear)

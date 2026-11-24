@@ -50,6 +50,10 @@ bool pillButton(const char* label, bool active, const char* tip = nullptr);
 void tooltip(const char* text);
 void sectionLabel(const char* text);
 // Texte centré (lignes coupées à « wrap » pixels, chacune centrée sur cx) ; renvoie la hauteur occupée.
+// Libellé centré au pixel près : une icône SVG en tête est centrée sur son dessin réel
+// (seule : au centre exact ; suivie d'un texte : au centre optique du texte). Police et taille courantes.
+void drawLabel(ImDrawList* dl, ImVec2 center, ImU32 col, const char* label, const char* end = nullptr, ImU32 shadow = 0);
+ImVec2 labelSize(const char* label, const char* end = nullptr);
 float centeredText(ImDrawList* dl, ImFont* font, float size, float cx, float y, float wrap, ImU32 col, const char* text);
 
 }  // namespace sq

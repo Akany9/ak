@@ -59,6 +59,8 @@ dans l'esprit de GarageBand / Logic / iOS 6 :
 - **Barre latérale bord à bord** dans Studio (Instruments), du bord gauche jusqu'en bas.
 - **Rayon d'angle uniforme** (`Theme::kRadius`) pour les fenêtres, panneaux, menus et cartes.
 - **Menus contextuels épurés** : plus d'icônes devant les commandes.
+- **Partout** : cartes de l'accueil et de l'Éducation en verre teinté, icônes d'application « en couches », bords plus contrastés, seul le panneau actif est souligné en bleu.
+- **Icônes recentrées** : chaque icône est placée selon son dessin réel (`drawLabel`) — au centre exact quand elle est seule, au centre optique du texte quand elle l'accompagne.
 - **Verre** limité au piano flottant et à la barre latérale du Studio : bord lumineux, réfraction régulière, contraste net. Réglage **teinté / clair** (bouton goutte), mémorisé dans workspace.json. La composition reste sans verre.
 
 ## Piano flottant (`src/piano.cpp`)

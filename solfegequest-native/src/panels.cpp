@@ -163,7 +163,9 @@ void Panels::headerButtons(PanelId id) {
     PanelState& s = p[id];
     float h = ImGui::GetFrameHeight();
     float w = h;
-    ImGui::SameLine(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - w));
+    // à droite, sans jamais recouvrir le dernier élément de l'en-tête
+    float after = ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x + ImGui::GetScrollX() + ImGui::GetStyle().ItemSpacing.x;
+    ImGui::SameLine(std::max(after, ImGui::GetWindowContentRegionMax().x - w));
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
     if (s.floating) {
         if (iconButton("dock", ICON_DOCK, "Ancrer dans la grille")) s.wantDock = true;

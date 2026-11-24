@@ -116,6 +116,18 @@ void innerShadow(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float size,
     }
 }
 
+void tintTop(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, ImU32 col, float frac) {
+    float mid = a.y + (b.y - a.y) * frac;
+    int v0 = dl->VtxBuffer.Size;
+    float al0 = float((col >> 24) & 0xff);
+    dl->AddRectFilled(ImVec2(a.x + 1, a.y + 1), ImVec2(b.x - 1, mid), col | 0xff000000u, std::max(0.f, rounding - 1), ImDrawFlags_RoundCornersTop);
+    for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
+        ImDrawVert& v = dl->VtxBuffer[i];
+        float t = std::clamp((v.pos.y - a.y) / std::max(1.f, mid - a.y), 0.f, 1.f);
+        v.col = (v.col & 0x00ffffff) | (unsigned(al0 * (1 - t)) << 24);
+    }
+}
+
 void sheen(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float alpha) {
     float mid = a.y + (b.y - a.y) * 0.55f;
     int v0 = dl->VtxBuffer.Size;
@@ -185,8 +197,13 @@ void glossTile(ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 top, ImU32 bottom, floa
     float h = b.y - a.y;
     dropShadow(dl, a, b, rounding, h * 0.10f, 0.7f);
     gradientRect(dl, a, b, top, bottom, rounding);
-    sheen(dl, a, b, rounding, 0.18f);
-    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, 46), rounding, 0, 1.f);
+    // couches : halo intérieur clair en haut, plaque de verre en bas (profondeur des icônes de macOS 27)
+    float w = b.x - a.x, d = std::max(1.f, w * 0.06f);
+    dl->AddRectFilledMultiColor(ImVec2(a.x + d, b.y - h * 0.42f), ImVec2(b.x - d, b.y - d), IM_COL32(255, 255, 255, 0), IM_COL32(255, 255, 255, 0),
+                                IM_COL32(0, 0, 0, 34), IM_COL32(0, 0, 0, 34));
+    sheen(dl, a, b, rounding, 0.22f);
+    dl->AddRect(ImVec2(a.x + d * 0.5f, a.y + d * 0.5f), ImVec2(b.x - d * 0.5f, b.y - d * 0.5f), IM_COL32(255, 255, 255, 26), std::max(0.f, rounding - d * 0.5f), 0, std::max(1.f, d * 0.25f));
+    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, 56), rounding, 0, 1.f);
     dl->AddRect(ImVec2(a.x - 0.5f, a.y - 0.5f), ImVec2(b.x + 0.5f, b.y + 0.5f), IM_COL32(0, 0, 0, 90), rounding + 0.5f, 0, 1.f);
 }
 
@@ -266,12 +283,8 @@ bool glossButton(const char* id, const char* label, bool active, ImVec2 size, bo
     }
     dl->AddRect(ImVec2(a.x - 0.5f, a.y - 0.5f), ImVec2(b.x + 0.5f, b.y + 0.5f), IM_COL32(0, 0, 0, 140), r + 0.5f, 0, 1.f);
     // libellé centré au pixel près (les icônes SVG font partie de la police, à leur taille exacte)
-    const char* le = ImGui::FindRenderedTextEnd(label);
-    ImVec2 ts = ImGui::CalcTextSize(label, le);
-    ImVec2 tp(std::round(a.x + (size.x - ts.x) * 0.5f), std::round(a.y + (size.y - ts.y) * 0.5f + (held ? 1 : 0)));
     ImU32 tc = dis ? IM_COL32(235, 235, 240, 90) : active ? IM_COL32_WHITE : IM_COL32(236, 236, 242, 255);
-    dl->AddText(ImVec2(tp.x, tp.y + 1), IM_COL32(0, 0, 0, 110), label, le);
-    dl->AddText(tp, tc, label, le);
+    drawLabel(dl, ImVec2(a.x + size.x * 0.5f, a.y + size.y * 0.5f + (held ? 1 : 0)), tc, label, nullptr, IM_COL32(0, 0, 0, 110));
     if (tip) tooltip(tip);
     ImGui::PopID();
     return pressed;
@@ -363,7 +376,7 @@ bool segmented(const char* id, const char* const* labels, int n, int* sel) {
     float h = ImGui::GetFrameHeight();
     std::vector<float> ws(static_cast<size_t>(n));
     float total = 0;
-    for (int i = 0; i < n; ++i) { ws[size_t(i)] = std::round(ImGui::CalcTextSize(labels[i]).x + 26 * s); total += ws[size_t(i)]; }
+    for (int i = 0; i < n; ++i) { ws[size_t(i)] = std::round(labelSize(labels[i]).x + 26 * s); total += ws[size_t(i)]; }
     ImVec2 a = ImGui::GetCursorScreenPos();
     a = ImVec2(std::round(a.x), std::round(a.y));
     ImVec2 b(a.x + total + 4 * s, a.y + h);
@@ -385,9 +398,7 @@ bool segmented(const char* id, const char* const* labels, int n, int* sel) {
         } else if (hov) {
             dl->AddRectFilled(p0, p1, IM_COL32(255, 255, 255, 10), r - 2 * s);
         }
-        ImVec2 ts = ImGui::CalcTextSize(labels[i]);
-        ImVec2 tp(std::round(x + (ws[size_t(i)] - ts.x) * 0.5f), std::round(a.y + (h - ts.y) * 0.5f));
-        dl->AddText(tp, *sel == i ? IM_COL32_WHITE : IM_COL32(220, 220, 228, 190), labels[i]);
+        drawLabel(dl, ImVec2(x + ws[size_t(i)] * 0.5f, a.y + h * 0.5f), *sel == i ? IM_COL32_WHITE : IM_COL32(220, 220, 228, 190), labels[i]);
         x += ws[size_t(i)];
     }
     ImGui::SetCursorScreenPos(ImVec2(b.x, a.y));

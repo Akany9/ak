@@ -1,0 +1,45 @@
+// Ressources Windows : icône, manifeste, version, fichiers embarqués (UTF-8).
+#pragma code_page(65001)
+#include <winver.h>
+#include "../src/resource_ids.h"
+
+SQ_RES_ICON_MAIN ICON "app.ico"
+1 24 "app.manifest"
+
+SQ_RES_SAMPLES 10 "../assets/samples.bin"
+SQ_RES_INTER 10 "../assets/Inter.ttf"
+SQ_RES_INTER_SB 10 "../assets/Inter-SemiBold.ttf"
+SQ_RES_FRAUNCES 10 "../assets/Fraunces.ttf"
+SQ_RES_BRAVURA 10 "../assets/Bravura.ttf"
+SQ_RES_ICONS 10 "../assets/Icons.ttf"
+SQ_RES_DATA 10 "../assets/data.json"
+SQ_RES_SYMBOLS 10 "../assets/Symbols.ttf"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION SQ_VERSION_RC
+ PRODUCTVERSION SQ_VERSION_RC
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040c04b0"
+        BEGIN
+            VALUE "CompanyName", "Solfège Quest"
+            VALUE "FileDescription", "Solfège Quest — solfège, studio et composition (C++)"
+            VALUE "FileVersion", SQ_VERSION_RC_STR
+            VALUE "InternalName", "SolfegeQuest"
+            VALUE "LegalCopyright", "Échantillons et polices : voir LISEZMOI"
+            VALUE "OriginalFilename", "SolfegeQuest.exe"
+            VALUE "ProductName", "Solfège Quest"
+            VALUE "ProductVersion", SQ_VERSION_RC_STR
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x040c, 1200
+    END
+END

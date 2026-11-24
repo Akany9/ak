@@ -6,7 +6,7 @@
 #app[data-mode=edu] .erc.open { background: rgba(255, 255, 255, .05) !important; }
 #app[data-mode=edu] .erl:hover { background: rgba(255, 255, 255, .05) !important; }
 #app[data-mode=edu] .erl.on { background: color-mix(in srgb, var(--cc,var(--accent)) 16%, #262628) !important; }
-#app[data-mode=edu] .erl.done .erk { background: color-mix(in srgb, #2e9e5b 35%, #262628) !important; }
+#app[data-mode=edu] .erl.done .erk { background: color-mix(in srgb, #2e649e 35%, #262628) !important; }
 #app[data-mode=edu] .edhero { background: var(--accent) !important; box-shadow: none !important; }
 #app[data-mode=edu] .edhero:before { background: rgba(255, 255, 255, 0.080) !important; }
 #app[data-mode=edu] .chcard { background: var(--cc) !important; border: 1px solid color-mix(in srgb, var(--cc) 30%, rgba(255, 255, 255, .1)) !important; box-shadow: none !important; }
@@ -15,15 +15,16 @@
 #app[data-mode=edu] .chi { background: var(--cc) !important; box-shadow: none !important; }
 #app[data-mode=edu] .lscard:hover { background: rgba(255, 255, 255, .05) !important; }
 #app[data-mode=edu] .lsn { background: color-mix(in srgb, var(--cc,var(--accent)) 16%, #262628) !important; color: color-mix(in srgb, var(--cc,var(--accent)) 80%, var(--ink)) !important; }
+#app[data-mode=edu] .lscard.done .lsn { background: #2e649e !important; }
 #app[data-mode=edu] .lhead:after { background: var(--accent) !important; }
 #app[data-mode=edu] .eh:before { background: var(--accent2) !important; }
 #app[data-mode=edu] .enote { box-shadow: none !important; }
 #app[data-mode=edu] .enote.tip { background: #262628 !important; color: color-mix(in srgb, #4d3a0b 45%, #fff) !important; }
 #app[data-mode=edu] .enote.tip .ni { background: #f5c25b !important; }
-#app[data-mode=edu] .enote.warn { background: #262628 !important; color: color-mix(in srgb, #5a2216 45%, #fff) !important; }
-#app[data-mode=edu] .enote.warn .ni { background: #f0866c !important; }
-#app[data-mode=edu] .enote.info { background: #262628 !important; color: color-mix(in srgb, #10403a 45%, #fff) !important; }
-#app[data-mode=edu] .enote.info .ni { background: #46b3a3 !important; }
+#app[data-mode=edu] .enote.warn { background: #262628 !important; border-color: #f2d0a6 !important; color: color-mix(in srgb, #5a3b16 45%, #fff) !important; }
+#app[data-mode=edu] .enote.warn .ni { background: #f0b56c !important; }
+#app[data-mode=edu] .enote.info { background: #262628 !important; border-color: #a8bed6 !important; color: color-mix(in srgb, #102740 45%, #fff) !important; }
+#app[data-mode=edu] .enote.info .ni { background: #467bb3 !important; }
 #app[data-mode=edu] .enote.memo { background: #262628 !important; color: color-mix(in srgb, #352359 45%, #fff) !important; }
 #app[data-mode=edu] .enote.memo .ni { background: #9a84d6 !important; }
 #app[data-mode=edu] .etbl { background: rgba(255, 255, 255, .05) !important; }
@@ -42,9 +43,12 @@
 #app[data-mode=edu] .equiz { background: #262628 !important; border: 1px solid color-mix(in srgb, var(--accent2) 35%, rgba(255, 255, 255, .1)) !important; box-shadow: none !important; }
 #app[data-mode=edu] .qopt { background: #262628 !important; border: 1px solid rgba(255, 255, 255, .1) !important; box-shadow: none !important; }
 #app[data-mode=edu] .qopt:hover { background: #262628 !important; }
-#app[data-mode=edu] .qopt.ok { background: #262628 !important; }
-#app[data-mode=edu] .qopt.ko { background: #262628 !important; }
-#app[data-mode=edu] .qfb b.r { color: color-mix(in srgb, #b13525 45%, #fff) !important; }
+#app[data-mode=edu] .qopt.ok { background: #262628 !important; border-color: #5f8dbf !important; }
+#app[data-mode=edu] .qopt.ok .qk { background: #2e649e !important; }
+#app[data-mode=edu] .qopt.ko { background: #262628 !important; border-color: #e5b57b !important; }
+#app[data-mode=edu] .qopt.ko .qk { background: #d9913a !important; }
+#app[data-mode=edu] .qfb b.g { color: #1d4a7a !important; }
+#app[data-mode=edu] .qfb b.r { color: color-mix(in srgb, #b17225 45%, #fff) !important; }
 #app[data-mode=edu] .edrill.embedded { box-shadow: none !important; }
 #app[data-mode=edu] .etool select, #app[data-mode=edu] .edrill select { background: rgba(255, 255, 255, .05) !important; color: color-mix(in srgb, #2a241e 45%, #fff) !important; border-color: rgba(255, 255, 255, .1) !important; }
 #app[data-mode=edu] .etool .seg, #app[data-mode=edu] .edrill .seg { border-color: rgba(255, 255, 255, .1) !important; }
@@ -56,11 +60,14 @@
 #app[data-mode=edu] .dst { border: 1px solid rgba(255, 255, 255, .1) !important; }
 #app[data-mode=edu] .dans { background: #262628 !important; border: 1px solid rgba(255, 255, 255, .1) !important; box-shadow: none !important; color: color-mix(in srgb, #2a241e 45%, #fff) !important; }
 #app[data-mode=edu] .dans:hover:not(:disabled) { background: #262628 !important; }
-#app[data-mode=edu] .dans.ok { background: #262628 !important; }
-#app[data-mode=edu] .dans.ko { background: #262628 !important; }
-#app[data-mode=edu] .dfb b.r { color: color-mix(in srgb, #b13525 45%, #fff) !important; }
+#app[data-mode=edu] .dans.ok { background: #262628 !important; border-color: #5f8dbf !important; }
+#app[data-mode=edu] .dans.ko { background: #262628 !important; border-color: #e5b57b !important; }
+#app[data-mode=edu] .dfb b.g { color: #1d4a7a !important; }
+#app[data-mode=edu] .dfb b.r { color: color-mix(in srgb, #b17225 45%, #fff) !important; }
 #app[data-mode=edu] .gcat { background: rgba(255, 255, 255, .05) !important; backdrop-filter: none !important; }
 #app[data-mode=edu] .gt { border-bottom: 1px solid rgba(255, 255, 255, .1) !important; }
+#app[data-mode=edu] .sc-l.done span { background: #2e649e !important; }
 #app[data-mode=edu] .mpend { background: #d9a566 !important; box-shadow: none !important; }
 #app[data-mode=edu] .mpend:before { background: #2c1a0a !important; }
+#app[data-mode=edu] .cs.min { fill: #eef1f4 !important; }
 #app[data-mode=edu] .trow2 { border-bottom: 1px solid rgba(255, 255, 255, .1) !important; }

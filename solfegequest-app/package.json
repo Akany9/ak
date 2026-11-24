@@ -1,0 +1,13 @@
+{
+  "name": "solfege-quest",
+  "version": "1.5.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "build:exe": "node tools/build.mjs --exe"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0"
+  }
+}

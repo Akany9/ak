@@ -4,6 +4,7 @@
 
 #include "../third_party/imgui/imgui_internal.h"
 #include "icons.hpp"
+#include "skeuo.hpp"
 #include "theme.hpp"
 #include "util.hpp"
 
@@ -178,25 +179,20 @@ void Panels::toggleBar() {
     for (int i = 0; i < P_Count; ++i) {
         PanelState& s = p[i];
         ImGui::PushID(i);
-        bool on = s.visible;
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(on ? col::segOn : col::seg));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(on ? col::rgb(112, 112, 116) : col::ctl));
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(on ? col::ink : col::ink2));
         std::string label = std::string(s.icon) + "  " + s.title;
-        if (ImGui::Button(label.c_str())) toggle(PanelId(i));
-        ImGui::PopStyleColor(3);
         std::string tip = std::string(s.visible ? "Masquer" : "Afficher") + " : " + s.title + " (" + s.shortcut + ")";
-        tooltip(tip.c_str());
+        float bw = ImGui::CalcTextSize(label.c_str()).x + 22 * theme().scale;
+        if (skeuo::glossButton(s.key, label.c_str(), s.visible, ImVec2(bw, ImGui::GetFrameHeight() + 2 * theme().scale), false, tip.c_str())) toggle(PanelId(i));
         ImGui::PopID();
         ImGui::SameLine();
     }
     ImGui::Dummy(ImVec2(6 * theme().scale, 1));
     ImGui::SameLine();
-    if (iconButton("dockall", ICON_DOCK, "Tout ancrer dans la grille")) dockAll();
+    if (skeuo::glossButton("dockall", ICON_DOCK, false, ImVec2(ImGui::GetFrameHeight() + 2 * theme().scale, ImGui::GetFrameHeight() + 2 * theme().scale), false, "Tout ancrer dans la grille")) dockAll();
     ImGui::SameLine();
-    if (iconButton("floatall", ICON_DETACH, "Tout passer en fenêtres flottantes")) floatAll();
+    if (skeuo::glossButton("floatall", ICON_DETACH, false, ImVec2(ImGui::GetFrameHeight() + 2 * theme().scale, ImGui::GetFrameHeight() + 2 * theme().scale), false, "Tout passer en fenêtres flottantes")) floatAll();
     ImGui::SameLine();
-    if (iconButton("reset", ICON_RESET, "Réinitialiser l'agencement")) resetLayout();
+    if (skeuo::glossButton("reset", ICON_RESET, false, ImVec2(ImGui::GetFrameHeight() + 2 * theme().scale, ImGui::GetFrameHeight() + 2 * theme().scale), false, "Réinitialiser l'agencement")) resetLayout();
     ImGui::PopStyleVar();
 }
 

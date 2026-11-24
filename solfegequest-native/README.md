@@ -13,6 +13,21 @@ interface Dear ImGui (branche *docking*), audio miniaudio (WASAPI). `SolfegeQues
 Dépendances (toutes dans `third_party/`, licences libres) : Dear ImGui 1.91.5-docking (MIT), miniaudio 0.11.21 (MIT-0 / domaine public),
 nlohmann/json 3.11.3 (MIT), miniz 3.0.2 (MIT).
 
+## Skeuomorphisme « à la Apple » (`src/skeuo.cpp`)
+
+Matières générées par le programme (aucune image externe, raccord sans couture) et widgets en relief,
+dans l'esprit de GarageBand / Logic / iOS 6 :
+
+- **Lin sombre** en fond de fenêtre ; **aluminium brossé** graphite pour les barres, avec **vis** apparentes.
+- **Boutons brillants** en relief (reflet sur la moitié haute, arête éclairée, texte gravé, enfoncement au clic) ;
+  boutons de transport **ronds**, bascules de panneaux bleues quand elles sont actives ; **contrôle segmenté** creusé.
+- **Écran LCD** bleu nuit rétroéclairé (verre, trame, reflet, texte lumineux) ; **vumètres à LED** (blanc → ambre).
+- **Console** : tranches en aluminium vissées, **étiquette papier** avec le nom de la piste, **potentiomètre** usiné
+  (glisser vertical, double-clic : centre), **fader à capuchon** strié, **joues en bois** aux extrémités.
+- **Piano roll** : clavier ivoire et ébène brillante ; **Partition** sur papier crème avec ombre portée.
+- **Accueil** et **Éducation** : cartes en **cuir surpiqué**, tuiles d'icônes **brillantes façon iOS 6**.
+- Le panneau **Pistes** reste volontairement sobre (régions et en-têtes neutres).
+
 ## Composition : panneaux façon FL Studio
 
 | Panneau | Touche | Contenu |

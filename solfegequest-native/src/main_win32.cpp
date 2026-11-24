@@ -11,6 +11,7 @@
 #include "../third_party/imgui/imgui.h"
 #include "app.hpp"
 #include "resource_ids.h"
+#include "skeuo.hpp"
 #include "theme.hpp"
 
 using namespace sq;
@@ -148,6 +149,43 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     App& a = app();
     a.setTitle = [hwnd](const char* t) { SetWindowTextW(hwnd, widen(t).c_str()); };
     a.init();
+    skeuo::createTexture = [](const unsigned* px, int w, int h) -> ImTextureID {
+        D3D11_TEXTURE2D_DESC d{};
+        d.Width = UINT(w);
+        d.Height = UINT(h);
+        d.MipLevels = 1;
+        d.ArraySize = 1;
+        d.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        d.SampleDesc.Count = 1;
+        d.Usage = D3D11_USAGE_DEFAULT;
+        d.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        D3D11_SUBRESOURCE_DATA sd{px, UINT(w * 4), 0};
+        ID3D11Texture2D* tex = nullptr;
+        if (FAILED(gDev->CreateTexture2D(&d, &sd, &tex)) || !tex) return ImTextureID(0);
+        D3D11_SHADER_RESOURCE_VIEW_DESC v{};
+        v.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        v.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        v.Texture2D.MipLevels = 1;
+        ID3D11ShaderResourceView* srv = nullptr;
+        gDev->CreateShaderResourceView(tex, &v, &srv);
+        tex->Release();
+        return ImTextureID(srv);
+    };
+    {
+        // échantillonneur « wrap » pour les matières répétées (le moteur d'ImGui utilise « clamp »)
+        static ID3D11SamplerState* wrap = nullptr;
+        D3D11_SAMPLER_DESC sd{};
+        sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sd.AddressU = sd.AddressV = sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        sd.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+        sd.MaxLOD = D3D11_FLOAT32_MAX;
+        gDev->CreateSamplerState(&sd, &wrap);
+        skeuo::beginWrap = [](ImDrawList* dl) {
+            dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) { gCtx->PSSetSamplers(0, 1, &wrap); }, nullptr);
+        };
+        skeuo::endWrap = [](ImDrawList* dl) { dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr); };
+    }
+    skeuo::init();
 
     bool done = false;
     while (!done && !a.quit) {

@@ -64,3 +64,10 @@ node tools/build.mjs --exe        # + ../solfegequest-cpp/res/app.html.gz, puis 
 - **Icônes de la colonne de gauche plus petites** (pistes, bibliothèque, volets du Studio, programme).
 - **Dégradés** réintroduits dans le thème (fond, barres, cartes, tuiles, boutons, segments, régions),
   toujours sans effet verre en dehors du Studio et du clavier.
+
+## Changements de la v1.8
+
+- **Pistes de la Composition neutres et allégées** : régions et en-têtes en gris, sans couleur de piste
+  ni dégradé (plus de liseré coloré, icônes grises), pistes moins hautes (62 px au lieu de 84),
+  nom de piste plus petit, boutons M / S / ● / automation et pastilles des curseurs réduits ;
+  les boutons ne se colorent plus (blanc quand actifs, rouge seulement quand la piste est armée).

@@ -400,7 +400,7 @@ body:not(:has(#app[data-mode=studio])) .menu {
 }
 #app[data-mode=comp] .rg.drm { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .06) 0 6px, transparent 6px 12px), linear-gradient(180deg, color-mix(in srgb, var(--tc) 88%, #fff 12%), color-mix(in srgb, var(--tc) 72%, #000 28%)); }
 #app[data-mode=comp] .rg.aud { background: color-mix(in srgb, var(--tc) 40%, #1c1c1e 60%); }
-#app[data-mode=comp] :is(.tico, .sm-ico, .cstrip .cico, .tile .ti) { background: linear-gradient(160deg, color-mix(in srgb, var(--tc, #636366) 70%, #fff 30%), var(--tc, #636366)) !important; border-radius: 7px; }
+#app[data-mode=comp] :is(.sm-ico, .cstrip .cico, .tile .ti) { background: #3a3a3c !important; border-radius: 7px; }
 #app[data-mode=comp] :is(.cbody, .ed-body) { background: var(--panel); }
 #app[data-mode=comp] .pitch-side { background: var(--side); border-color: var(--sep); }
 #app[data-mode=comp] .pp-read { background: var(--inp) !important; border: 1px solid var(--sep); border-radius: 9px; }
@@ -586,3 +586,71 @@ body:not(:has(#app[data-mode=studio])) .menu {
 @media (max-width: 900px) { .uiscale b { min-width: 38px; } }
 #app[data-mode=comp] { --accent-fg: #9d9bff; }
 #app[data-mode=edu] { --accent-fg: #ffb340; }
+
+/* =====================================================================
+   v1.8 — Pistes de la Composition : neutres, sans couleur ni dégradé, allégées
+   ===================================================================== */
+#app[data-mode=comp] .trow { height: 62px; }
+#app[data-mode=comp] .trow.arow { height: 52px; }
+#app[data-mode=comp] .thead {
+  background: #1c1c1e;
+  padding: 5px 10px 5px 10px;
+  gap: 2px 7px;
+  grid-template-columns: 20px minmax(0, 1fr);
+}
+#app[data-mode=comp] .trow.sel .thead { background: #2a2a2d; }
+#app[data-mode=comp] .trow.sel .lane { background-color: rgba(255, 255, 255, .025); }
+#app[data-mode=comp] .thead .tcol { display: none; }
+#app[data-mode=comp] .thead .tico {
+  width: 20px !important; height: 20px !important; border-radius: 5px !important;
+  background: #3a3a3c !important; color: rgba(235, 235, 245, .75);
+  box-shadow: none !important; font-size: .7rem;
+}
+#app[data-mode=comp] .thead .tico .ic { width: 12px; height: 12px; }
+#app[data-mode=comp] .tname { font-size: .74rem; font-weight: 500; color: rgba(235, 235, 245, .86); letter-spacing: 0; }
+#app[data-mode=comp] .trow.sel .tname { color: #fff; }
+#app[data-mode=comp] .tbtns { gap: 3px; }
+#app[data-mode=comp] .tbtns button {
+  width: 17px; height: 15px; border-radius: 4px;
+  font-size: .55rem; font-weight: 600;
+  background: transparent; border: 1px solid rgba(255, 255, 255, .14);
+  color: rgba(235, 235, 245, .6); box-shadow: none;
+}
+#app[data-mode=comp] .tbtns .ic { width: .85em; height: .85em; }
+#app[data-mode=comp] .tbtns .rb { color: rgba(235, 235, 245, .5); }
+#app[data-mode=comp] .tbtns :is(.mb.on, .sb.on, .ab.on) { background: #e5e5ea; color: #1c1c1e; border-color: transparent; }
+#app[data-mode=comp] .tbtns .rb.on { background: #ff453a; color: #fff; border-color: transparent; }
+
+/* curseurs de la Composition : fins, pastille réduite, sans couleur */
+#app[data-mode=comp] input[type=range] { height: 14px; }
+#app[data-mode=comp] input[type=range]::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 3px; box-shadow: none;
+  background: linear-gradient(90deg, rgba(235, 235, 245, .55) var(--p, 50%), rgba(255, 255, 255, .12) var(--p, 50%));
+}
+#app[data-mode=comp] input[type=range]::-webkit-slider-thumb {
+  width: 11px; height: 11px; margin-top: -4px;
+  background: #e5e5ea; box-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+#app[data-mode=comp] input[type=range]::-moz-range-track { height: 3px; background: rgba(255, 255, 255, .12); }
+#app[data-mode=comp] input[type=range]::-moz-range-progress { height: 3px; background: rgba(235, 235, 245, .55); }
+#app[data-mode=comp] input[type=range]::-moz-range-thumb { width: 11px; height: 11px; background: #e5e5ea; }
+#app[data-mode=comp] .thead .tvol { height: 12px; }
+
+/* régions : gris neutre, à plat */
+#app[data-mode=comp] .rg,
+#app[data-mode=comp] .rg.drm,
+#app[data-mode=comp] .rg.aud {
+  background: #3a3a3d;
+  background-image: none;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 5px;
+  box-shadow: none;
+  color: rgba(235, 235, 245, .9);
+  top: 5px; bottom: 5px;
+}
+#app[data-mode=comp] .rg.aud { background: #2f2f32; }
+#app[data-mode=comp] .rg.sel,
+#app[data-mode=comp] .rg.on { background: #4a4a4e; border-color: rgba(255, 255, 255, .55); }
+#app[data-mode=comp] .rg :is(.rgn, .rgname, b, .rgt) { font-size: .66rem; font-weight: 500; }
+#app[data-mode=comp] .rg .rgl { font-size: .62rem; font-weight: 500; top: 2px; left: 6px; color: rgba(235, 235, 245, .8); }
+#app[data-mode=comp] .rg.sel { outline: 1px solid rgba(255, 255, 255, .7); outline-offset: 0; box-shadow: none; }

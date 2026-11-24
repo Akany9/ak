@@ -1,0 +1,498 @@
+/* =====================================================================
+   Thème « macOS Catalina » — v1.5
+   - SF Pro Display pour l'interface (repli : Inter), titres en Valky / Ogg (repli : Fraunces) ;
+   - surfaces opaques, coins de 6 à 10 px, séparateurs fins, contrôles façon AppKit ;
+   - pas de verre dépoli (liquid glass) ni de dégradés, SAUF dans le Studio et le clavier flottant ;
+   - Composition entièrement à plat.
+   ===================================================================== */
+
+:root {
+  --f-text: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --f-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --f-title: "Valky", "Ogg", "Fraunces", "Iowan Old Style", Georgia, serif;
+  --r: 10px;
+  --r-md: 8px;
+  --r-sm: 6px;
+  --mac-blue: #007aff;
+  --mac-focus: rgba(0, 122, 255, .45);
+}
+
+body {
+  font-family: var(--f-text);
+  font-size: 15px;
+  letter-spacing: -.005em;
+  font-optical-sizing: auto;
+}
+
+/* Titres seulement : Valky / Ogg ; le reste en SF Pro Display */
+h1, h2, .hero h1, .st-head h2, .topbar .title {
+  font-family: var(--f-title);
+  font-weight: 400;
+  letter-spacing: -.01em;
+}
+h3, h4, .disp {
+  font-family: var(--f-display);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.lcd, .lcd .cell b, .num { font-family: var(--f-display); }
+
+/* ---------------------------------------------------------------------
+   Palettes (apparence claire Catalina ; Studio en apparence sombre)
+   --------------------------------------------------------------------- */
+#app[data-mode=home], #app[data-mode=edu], #app[data-mode=comp] {
+  --ink: rgba(0, 0, 0, .86);
+  --ink2: rgba(0, 0, 0, .58);
+  --ink3: rgba(0, 0, 0, .38);
+  --accent-ink: #fff;
+  --glass: #f6f6f6;
+  --glass2: #ffffff;
+  --panel: #ffffff;
+  --side: #f0f0f2;
+  --win: #ececec;
+  --toolbar: #e8e8e8;
+  --stroke: rgba(0, 0, 0, .12);
+  --sep: rgba(0, 0, 0, .1);
+  --hi: transparent;
+  --lo: transparent;
+  --shadow: rgba(0, 0, 0, .18);
+  --field: #ffffff;
+  --ctl: #ffffff;
+  --seg: rgba(0, 0, 0, .07);
+  --paper: #ffffff;
+  --paper-ink: #1d1d1f;
+  --bg0: #ececec;
+  --bg1: #ececec;
+  --bg2: #ececec;
+  color-scheme: light;
+}
+#app[data-mode=home] { --accent: #007aff; --accent2: #ff9500; --accent-soft: rgba(0, 122, 255, .12); }
+#app[data-mode=edu]  { --accent: #1f9d55; --accent2: #ff9500; --accent-soft: rgba(31, 157, 85, .13); }
+#app[data-mode=comp] { --accent: #e0244f; --accent2: #007aff; --accent-soft: rgba(224, 36, 79, .12); }
+
+#app[data-mode=studio] {
+  --ink: rgba(255, 255, 255, .9);
+  --ink2: rgba(255, 255, 255, .62);
+  --ink3: rgba(255, 255, 255, .4);
+  --accent: #0a84ff;
+  --accent2: #bf5af2;
+  --accent-ink: #fff;
+  --accent-soft: rgba(10, 132, 255, .2);
+  --glass: rgba(44, 44, 46, .62);
+  --glass2: rgba(58, 58, 60, .78);
+  --stroke: rgba(255, 255, 255, .12);
+  --hi: rgba(255, 255, 255, .16);
+  --lo: rgba(0, 0, 0, .4);
+  --field: rgba(0, 0, 0, .32);
+  --ctl: rgba(255, 255, 255, .1);
+  --seg: rgba(0, 0, 0, .3);
+  --sep: rgba(255, 255, 255, .1);
+  --bg0: #141416;
+  --bg1: #1e1e21;
+  --bg2: #2b2b30;
+}
+
+/* ---------------------------------------------------------------------
+   Fond de fenêtre : uni (le décor d'icônes et les halos ne restent que dans le Studio)
+   --------------------------------------------------------------------- */
+#app:not([data-mode=studio]) .bgs { background: var(--win); }
+#app:not([data-mode=studio]) .bgs:after,
+#app:not([data-mode=studio]) .bg { display: none; }
+.view { transform: none !important; transition: opacity .25s ease; }
+
+/* ---------------------------------------------------------------------
+   Panneaux : opaques hors Studio (le verre reste dans le Studio et le clavier)
+   --------------------------------------------------------------------- */
+#app:not([data-mode=studio]) .glass {
+  background: var(--panel);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid var(--sep);
+  border-radius: var(--r);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+#app:not([data-mode=studio]) .glass:before { display: none; }
+#app:not([data-mode=studio]) .glass.strong { background: var(--panel); }
+#app:not([data-mode=studio]) .plate {
+  background: var(--side);
+  border: 1px solid var(--sep);
+  border-radius: var(--r-md);
+  box-shadow: none;
+}
+#app:not([data-mode=studio]) .paper,
+#app:not([data-mode=studio]) .paper:after {
+  background: #fff;
+  background-image: none;
+}
+#app:not([data-mode=studio]) .paper {
+  border-radius: var(--r-md);
+  box-shadow: 0 0 0 1px var(--sep), 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+/* Studio : verre conservé, mais coins et ombres façon macOS */
+#app[data-mode=studio] .glass { border-radius: 12px; }
+
+/* ---------------------------------------------------------------------
+   Barre d'outils unifiée (pleine largeur, comme une fenêtre Catalina)
+   --------------------------------------------------------------------- */
+.comp, .studio, .edu { padding: 0 0 calc(var(--safe-b) + var(--kbd-h)); gap: 0; }
+.comp > .topbar, .studio > .topbar, .edu > .topbar,
+.topbar {
+  margin: 0;
+  border-radius: 0 !important;
+  border-width: 0 0 1px !important;
+  min-height: 52px;
+  padding: calc(6px + var(--safe-t)) 12px 6px;
+}
+#app:not([data-mode=studio]) .topbar {
+  background: var(--toolbar);
+  border-color: rgba(0, 0, 0, .14) !important;
+  box-shadow: none;
+}
+.topbar .title { font-size: 1.32rem; }
+.topbar .title .ic { color: var(--accent); }
+
+.ctool {
+  border-radius: 0 !important;
+  border-width: 0 0 1px !important;
+  margin: 0;
+  padding: 6px 12px;
+}
+#app:not([data-mode=studio]) .ctool { background: #f3f3f3; box-shadow: none; }
+
+/* zone de travail sous la barre */
+.cmain, .stmain, .edmain { padding: 10px 12px 12px; gap: 10px; }
+
+/* ---------------------------------------------------------------------
+   Contrôles AppKit
+   --------------------------------------------------------------------- */
+.btn {
+  font-family: var(--f-display);
+  font-weight: 500;
+  font-size: .9em;
+  border-radius: 6px;
+  min-height: 28px;
+  padding: .32em .9em;
+}
+.btn.ico { width: 30px; height: 30px; border-radius: 6px; }
+.btn.sm { min-height: 24px; padding: .22em .7em; font-size: .82em; border-radius: 5px; }
+.btn.sm.ico { width: 26px; height: 26px; }
+.btn:active { transform: none; }
+
+#app:not([data-mode=studio]) .btn {
+  background: var(--ctl);
+  color: var(--ink);
+  border: 1px solid rgba(0, 0, 0, .14);
+  box-shadow: 0 .5px 1px rgba(0, 0, 0, .12);
+}
+#app:not([data-mode=studio]) .btn:hover { filter: none; background: #fafafa; }
+#app:not([data-mode=studio]) .btn:active { background: #e6e6e6; }
+#app:not([data-mode=studio]) .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
+#app:not([data-mode=studio]) .btn.ghost:hover { background: rgba(0, 0, 0, .06); }
+#app:not([data-mode=studio]) .btn.pri,
+#app:not([data-mode=studio]) .btn.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  box-shadow: 0 .5px 1px rgba(0, 0, 0, .2);
+}
+#app:not([data-mode=studio]) .btn.pri:hover { filter: brightness(1.06); }
+#app:not([data-mode=studio]) .btn.sec { background: var(--accent2); color: #fff; border-color: transparent; }
+#app:not([data-mode=studio]) .btn.danger { color: #d70015; }
+#app:not([data-mode=studio]) .btn.rec.on { background: #ff3b30; box-shadow: none; animation: none; }
+
+/* Contrôle segmenté (pastille blanche sur piste grise) */
+.seg, .modesw {
+  border-radius: 7px;
+  padding: 2px;
+  gap: 0;
+  box-shadow: none;
+}
+.seg > button, .modesw button { border-radius: 5px; padding: .26em .85em; font-weight: 500; font-family: var(--f-display); }
+#app:not([data-mode=studio]) :is(.seg, .modesw) { background: var(--seg); border: 0; }
+#app:not([data-mode=studio]) :is(.seg > button, .modesw button) { color: var(--ink); }
+#app:not([data-mode=studio]) :is(.seg > button.on, .modesw button.on) {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .22), 0 0 0 .5px rgba(0, 0, 0, .06);
+}
+#app:not([data-mode=studio]) .modesw button.on .ic { color: var(--accent); }
+
+/* Pastilles, champs */
+.chip { border-radius: 5px; font-weight: 500; font-family: var(--f-display); }
+#app:not([data-mode=studio]) .chip { background: rgba(0, 0, 0, .05); border-color: transparent; color: var(--ink2); }
+#app:not([data-mode=studio]) .chip.acc { background: var(--accent-soft); color: var(--accent); }
+#app:not([data-mode=studio]) :is(input[type=text], input[type=search], input[type=number], input:not([type]), select, textarea, .libq) {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .16);
+  border-radius: 6px;
+  box-shadow: inset 0 .5px 1px rgba(0, 0, 0, .06);
+}
+:is(input, select, textarea, button):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--mac-focus) !important;
+}
+
+/* Écran LCD du transport : façon panneau de Logic (plat hors Studio) */
+#app:not([data-mode=studio]) .lcd {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .14);
+  border-radius: 7px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .06);
+  color: var(--ink);
+}
+#app:not([data-mode=studio]) .lcd .cell b { color: var(--ink); text-shadow: none; }
+#app:not([data-mode=studio]) .lcd .cell small { color: var(--ink3); }
+#app:not([data-mode=studio]) .tbtn {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, .14);
+  box-shadow: 0 .5px 1px rgba(0, 0, 0, .1);
+  color: var(--ink);
+}
+#app:not([data-mode=studio]) .tbtn.on { background: var(--accent); color: #fff; border-color: transparent; }
+#app:not([data-mode=studio]) .tbtn.rec.on { background: #ff3b30; }
+.tbtn[disabled] { opacity: .32; pointer-events: none; }
+
+/* Menus, fenêtres modales, bulles : feuilles AppKit */
+.menu, .modal {
+  border-radius: 10px !important;
+  font-family: var(--f-text);
+}
+#app:not([data-mode=studio]) .modal,
+#app:not([data-mode=studio]) ~ .menu,
+body:not(:has(#app[data-mode=studio])) .menu {
+  background: #f6f6f6 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  color: rgba(0, 0, 0, .86);
+  border: 1px solid rgba(0, 0, 0, .14) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .25), 0 0 0 .5px rgba(0, 0, 0, .1) !important;
+}
+.toast { border-radius: 8px !important; font-family: var(--f-display); }
+
+/* ---------------------------------------------------------------------
+   Accueil : façon « Préférences Système » — icônes au lieu des photos
+   --------------------------------------------------------------------- */
+.home { padding: calc(36px + var(--safe-t)) 24px calc(30px + var(--kbd-h)); }
+.home-in { max-width: 1080px; gap: 28px; }
+.hero .logo {
+  width: 76px; height: 76px; border-radius: 18px;
+  background: var(--accent); color: #fff; border: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+  font-size: 2.2rem;
+}
+.hero h1 { font-weight: 400; font-size: clamp(2.6rem, 5.6vw, 4.2rem); letter-spacing: -.02em; }
+.hero h1 em { background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--accent); font-style: italic; }
+.hero .tag { font-style: normal; color: var(--ink2); font-size: 1.05rem; }
+
+.cards { gap: 18px; }
+.mcard {
+  min-height: 0;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--sep);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+  justify-content: flex-start;
+  overflow: hidden;
+  transition: box-shadow .2s, transform .2s;
+}
+.mcard:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, .12), 0 0 0 1px var(--sep); }
+.mcard:active { transform: none; }
+.mcard .shine { display: none; }
+.mcard[data-m] {
+  --ink: rgba(0, 0, 0, .86); --ink2: rgba(0, 0, 0, .58); --ink3: rgba(0, 0, 0, .38);
+  --glass: #fff; --stroke: transparent; --field: rgba(0, 0, 0, .05); --accent-ink: #fff;
+}
+.mcard[data-m=edu] { --accent: #1f9d55; --tile: #1f9d55; }
+.mcard[data-m=studio] { --accent: #0a84ff; --tile: #2c2c2e; }
+.mcard[data-m=comp] { --accent: #e0244f; --tile: #e0244f; }
+
+.cart {
+  position: relative;
+  inset: auto;
+  z-index: 0;
+  height: 168px;
+  background: #f5f5f7;
+  border-bottom: 1px solid var(--sep);
+  display: grid;
+  place-items: center;
+}
+.cart:after { display: none; }
+.cart .cicon {
+  width: 92px; height: 92px; border-radius: 22px;
+  display: grid; place-items: center;
+  background: var(--tile); color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+.cart .cicon .ic { width: 50px; height: 50px; stroke-width: 1.6; }
+.cart .cmini { position: absolute; bottom: 12px; display: flex; gap: 14px; color: var(--ink3); }
+.cart .cmini .ic { width: 18px; height: 18px; stroke-width: 1.8; }
+.mcard:hover .cart .cmini { color: var(--accent); }
+
+.mcard .cbody {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 16px 18px 18px !important;
+}
+.mcard .csub { color: var(--accent); letter-spacing: .06em; font-family: var(--f-display); font-weight: 600; }
+.mcard h2 { font-size: 1.85rem; }
+.mcard .enter { color: var(--accent); font-family: var(--f-display); font-weight: 600; }
+.home-foot .btn { min-height: 30px; }
+
+@media (max-width: 860px) {
+  .cards { grid-template-columns: 1fr; }
+  .cart { height: 120px; }
+}
+
+/* ---------------------------------------------------------------------
+   Barres latérales (liste source Catalina)
+   --------------------------------------------------------------------- */
+#app:not([data-mode=studio]) :is(.clib, .edrail) { background: var(--side); }
+.strail, .edrail, .clib { border-radius: var(--r); }
+.strb { border-radius: 7px; padding: 6px 8px; }
+.strb .si { border-radius: 7px; }
+.strg {
+  font: 600 .7rem/1 var(--f-display);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: 12px 10px 4px;
+}
+.strg:first-child { padding-top: 4px; }
+
+/* contexte de la barre de transport du Studio */
+.tctx {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px 8px; margin-right: 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--stroke);
+  font-family: var(--f-display);
+  white-space: nowrap;
+}
+.tctx .ic { color: var(--accent); }
+.tctx span { display: flex; flex-direction: column; line-height: 1.1; }
+.tctx b { font-weight: 600; font-size: .82rem; }
+.tctx small { font-size: .7rem; color: var(--ink3); }
+.tctx[data-ctx=beat] .ic { color: #ff9f0a; }
+.tctx[data-ctx=off] { opacity: .7; }
+.bhint { display: inline-flex; align-items: center; gap: 6px; }
+.smlink p { margin: 6px 0 10px; max-width: 30ch; }
+
+/* ---------------------------------------------------------------------
+   Composition : à plat (aucun verre, aucun dégradé)
+   --------------------------------------------------------------------- */
+#app[data-mode=comp] *,
+#app[data-mode=comp] *:before,
+#app[data-mode=comp] *:after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+#app[data-mode=comp] :is(.btn, .tbtn, .seg > button, .modesw button, .etab, .chip, .tchip, .cbody, .clib, .ctool, .lcd) {
+  background-image: none !important;
+}
+#app[data-mode=comp] :is(.etab.on) { background: #fff !important; color: var(--ink) !important; box-shadow: 0 1px 2px rgba(0, 0, 0, .2) !important; }
+
+/* ---------------------------------------------------------------------
+   Aperçu de la note à poser sur la partition (40-score-preview.js)
+   --------------------------------------------------------------------- */
+.score-host.ghosting { cursor: crosshair; }
+.ghost { color: var(--accent, #007aff); fill: currentColor; stroke: currentColor; opacity: .82; }
+.ghost text.g { stroke: none; }
+.ghost .ghost-col { fill: var(--accent, #007aff); stroke: none; opacity: .09; }
+.ghost .ghost-ledger { stroke-width: 1.1; }
+.ghost .ghost-stem { stroke-linecap: round; }
+.ghost.bad { color: #ff3b30; }
+.ghost-tip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: rgba(30, 30, 32, .92);
+  color: #fff;
+  font: 500 12.5px/1.25 var(--f-display);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity .12s, transform .12s;
+  max-width: 230px;
+}
+.ghost-tip.on { opacity: 1; transform: none; }
+.ghost-tip b { font-weight: 600; }
+.ghost-tip span { color: rgba(255, 255, 255, .7); }
+.ghost-tip.bad span { color: #ff8a80; }
+
+/* ---------------------------------------------------------------------
+   Composition à plat : régions, icônes de pistes, palette de hauteur
+   --------------------------------------------------------------------- */
+#app[data-mode=comp] .rg {
+  background: color-mix(in srgb, var(--tc) 78%, #fff 22%);
+  border: 1px solid color-mix(in srgb, var(--tc) 70%, #000 30%);
+  border-radius: 5px;
+  box-shadow: none;
+  color: #fff;
+}
+#app[data-mode=comp] .rg.drm { background: color-mix(in srgb, var(--tc) 78%, #fff 22%); }
+#app[data-mode=comp] .rg.aud { background: color-mix(in srgb, var(--tc) 45%, #fff 55%); color: rgba(0, 0, 0, .8); }
+#app[data-mode=comp] .lane {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .1) 0 1px, transparent 1px var(--bw)),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .035) 0 1px, transparent 1px var(--z));
+}
+#app[data-mode=comp] :is(.tico, .sm-ico, .cstrip .cico, .tile .ti, .dtxic, .loopc .lp, .chpad, .chpad.tonic, .chpad.dom, .dstyle.on, .sc.on, .loopband.on, .ctool .btn.tgl.on) {
+  background-image: none !important;
+  box-shadow: none !important;
+}
+#app[data-mode=comp] :is(.tico, .sm-ico, .cstrip .cico, .tile .ti) { background: var(--tc, #8e8e93) !important; border-radius: 7px; }
+#app[data-mode=comp] .pitch-side { background: #f7f7f7; border-color: var(--sep); }
+#app[data-mode=comp] .pp-k.wht { background: #fff; border: 1px solid rgba(0, 0, 0, .15); }
+#app[data-mode=comp] .pp-k.blk { background: #1d1d1f; color: #fff; background-image: none; }
+#app[data-mode=comp] .pp-k.on { background: var(--accent); color: #fff; outline: 0; }
+#app[data-mode=comp] .pp-read { background: #fff !important; background-image: none !important; border: 1px solid var(--sep); border-radius: 8px; box-shadow: none !important; }
+#app[data-mode=comp] .tbtn { border-radius: 7px; width: 38px; height: 32px; }
+#app[data-mode=comp] .tbtn.play { width: 46px; }
+#app[data-mode=comp] .cbody, #app[data-mode=comp] .ed-body { background: #fff; }
+#app[data-mode=comp] .scored-ov { background: rgba(255, 255, 255, .92); background-image: none; }
+
+/* ---------------------------------------------------------------------
+   Éducation à plat (cartes blanches, couleur seulement sur les icônes)
+   --------------------------------------------------------------------- */
+#app[data-mode=edu] :is(.edhero, .chcard, .dcard, .gcat, .equiz, .efig, .gbig, .fchip, .mpend, .ekey, .etbl th) {
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid var(--sep) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06) !important;
+}
+#app[data-mode=edu] :is(.edhero:before, .chcard:after, .lhead:after, .eh:before, .mpend:before) { display: none !important; }
+#app[data-mode=edu] .chcard { border-top: 3px solid var(--cc) !important; }
+#app[data-mode=edu] :is(.chi, .dci, .eri.on .eric, .erc.open .eric) { background: var(--cc, var(--accent)) !important; background-image: none !important; box-shadow: none !important; border-radius: 8px; color: #fff; }
+#app[data-mode=edu] .edsecs button.on { background: var(--accent); background-image: none; box-shadow: none; color: #fff; }
+#app[data-mode=edu] .enote { background-image: none !important; border-radius: 8px !important; }
+#app[data-mode=edu] :is(.qopt.ok, .dans.ok) { background: #e3f6e8; background-image: none; }
+#app[data-mode=edu] :is(.qopt.ko, .dans.ko) { background: #fde7e6; background-image: none; }
+#app[data-mode=edu] .strb.on .si, .strb.on .si { background-image: none; }
+
+/* Studio : icône du volet */
+#app[data-mode=edu] :is(.chcard:before, .dcard:before, .dcard:after) { display: none !important; }
+.bl2.bhint, .bhint { flex-direction: row !important; align-items: center; }
+
+/* Éditeur de partition plein écran : feuille opaque façon Catalina (aucun verre) */
+.scored-ov {
+  background: #ececec !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.scored-ov .glass, .scored-ov .plate, .scored-ov .scored-sec {
+  background: #fff !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06) !important;
+}
+.scored-ov .glass:before { display: none !important; }

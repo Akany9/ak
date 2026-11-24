@@ -1,9 +1,9 @@
 # Solfège Quest — version bureau en C++ (.exe Windows)
 
-Réécriture en **C++17** du lanceur `SolfegeQuest.exe` (auparavant écrit en Go), avec **exactement la même interface** :
-le HTML de l'application embarqué est, octet pour octet, celui de la version Go (vérifié par comparaison).
+Réécriture en **C++17** du lanceur `SolfegeQuest.exe` (auparavant écrit en Go). Depuis la v1.5, l'interface embarquée
+(thème macOS Catalina) est construite à partir de `../solfegequest-app` ; la v1.4 embarquait à l'identique le HTML de la version Go.
 
-`SolfegeQuest.exe` est un exécutable Windows 64 bits **autonome** (≈ 8 Mo au lieu de 14, aucun installateur, aucune connexion Internet,
+`SolfegeQuest.exe` est un exécutable Windows 64 bits **autonome** (≈ 6,5 Mo, aucun installateur, aucune connexion Internet,
 aucune DLL hors Windows) :
 
 1. il contient toute l'application (HTML + polices, échantillons, pdf.js… compressé en gzip) en ressource Windows ;
@@ -56,7 +56,7 @@ ou `localhost:port` est refusée (protection contre le DNS rebinding).
 
 ## Vérifications faites
 
-- HTML servi identique à celui de la version Go (gzip et décompressé), rendu de l'accueil vérifié dans Chromium ;
+- HTML servi identique à celui embarqué (gzip et décompressé), rendu des volets vérifié dans Chromium ;
 - `ETag` / `304`, ping `204`, `/__sq/id`, refus d'un `Host` étranger, icônes, 404 ;
 - port occupé par un autre programme → port suivant (avec avertissement dans le journal) ;
 - second lancement → nouvelle fenêtre dans l'instance existante ;
@@ -69,3 +69,8 @@ ou `localhost:port` est refusée (protection contre le DNS rebinding).
 - Il n'est **pas signé** : SmartScreen peut afficher « Windows a protégé votre ordinateur » → *Informations complémentaires* › *Exécuter quand même*.
 - L'interface reste une application web affichée par Edge en mode application (et non des fenêtres Win32 natives) :
   c'est ce qui garantit une interface **strictement identique** et conserve Web Audio, Web MIDI, micro, sélecteur de fichiers et IndexedDB.
+
+## Mettre à jour l'interface
+
+Les sources de l'interface sont dans `../solfegequest-app` : `node tools/build.mjs --exe` régénère
+`res/app.html.gz`, puis `./build.sh` reconstruit l'exe.

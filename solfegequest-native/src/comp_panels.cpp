@@ -182,14 +182,14 @@ void App::playlistPanel() {
             }
             if (ImGui::BeginPopupContextItem("tmenu")) {
                 doc.selTrack = t.id;
-                if (ImGui::MenuItem(ICON_PALETTE "  Couleur de la piste…")) openTrackColor(t.id);
-                if (ImGui::MenuItem(ICON_PENCIL "  Renommer")) {
+                if (ImGui::MenuItem("Couleur de la piste…")) openTrackColor(t.id);
+                if (ImGui::MenuItem("Renommer")) {
                     ed.renameTrack = t.id;
                     std::snprintf(ed.renameBuf, sizeof ed.renameBuf, "%s", t.name.c_str());
                 }
-                if (ImGui::MenuItem(ICON_COPY "  Dupliquer la piste")) toDup = t.id;
+                if (ImGui::MenuItem("Dupliquer la piste")) toDup = t.id;
                 ImGui::Separator();
-                if (ImGui::MenuItem(ICON_TRASH "  Supprimer la piste")) toDelete = t.id;
+                if (ImGui::MenuItem("Supprimer la piste")) toDelete = t.id;
                 ImGui::EndPopup();
             }
             // icône + nom
@@ -450,11 +450,11 @@ void App::playlistPanel() {
         if (!r) ImGui::CloseCurrentPopup();
         else {
             std::string rid = menuRid;
-            if (ImGui::MenuItem(ICON_GRID "  Ouvrir dans le piano roll")) panels.show(P_PianoRoll);
-            if (ImGui::MenuItem(ICON_SCORE "  Ouvrir en partition")) panels.show(P_Score);
-            if (ImGui::MenuItem(ICON_LOOP "  Boucler la région", nullptr, r->loop))
+            if (ImGui::MenuItem("Ouvrir dans le piano roll")) panels.show(P_PianoRoll);
+            if (ImGui::MenuItem("Ouvrir en partition")) panels.show(P_Score);
+            if (ImGui::MenuItem("Boucler la région", nullptr, r->loop))
                 doc.edit("Boucle de région", [&](Project& Q) { if (Region* x = Q.region(rid)) { x->loop = !x->loop; if (x->loop && x->ll <= 0) x->ll = x->len; } });
-            if (ImGui::MenuItem(ICON_COPY "  Dupliquer (Ctrl+D)")) {
+            if (ImGui::MenuItem("Dupliquer (Ctrl+D)")) {
                 std::string nid = newId('r');
                 doc.edit("Dupliquer la région", [&](Project& Q) {
                     Track* ow;
@@ -463,7 +463,7 @@ void App::playlistPanel() {
                 doc.selRegion = nid;
             }
             ImGui::Separator();
-            if (ImGui::MenuItem(ICON_TRASH "  Supprimer (Suppr)")) {
+            if (ImGui::MenuItem("Supprimer (Suppr)")) {
                 doc.edit("Supprimer la région", [&](Project& Q) {
                     for (auto& t : Q.tracks) t.regions.erase(std::remove_if(t.regions.begin(), t.regions.end(), [&](auto& x) { return x.id == rid; }), t.regions.end());
                 });

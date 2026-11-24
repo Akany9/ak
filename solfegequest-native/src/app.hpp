@@ -68,7 +68,7 @@ public:
     void go(Mode m);
 
     // écrans
-    void topBar(const char* title, const char* icon);
+    void topBar(const char* title, const char* icon, bool unified = false);
     void transportBar(bool full);
     void homeScreen();
     void eduScreen();

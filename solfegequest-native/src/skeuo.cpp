@@ -128,6 +128,38 @@ void sheen(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float alpha) {
     }
 }
 
+void glass(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float shadow) {
+    float s = theme().scale;
+    bool clear = theme().glassClear;
+    if (shadow > 0) dropShadow(dl, a, b, rounding, 14 * s * shadow, clear ? 0.35f : 0.55f);
+    // corps : teinte graphite, plus ou moins opaque
+    gradientRect(dl, a, b, clear ? IM_COL32(78, 82, 96, 92) : IM_COL32(52, 54, 62, 236), clear ? IM_COL32(40, 42, 50, 120) : IM_COL32(30, 31, 36, 244), rounding);
+    material(dl, Mat::Grain, a, b, IM_COL32(255, 255, 255, clear ? 10 : 14), rounding, s);
+    // réfraction : bande claire le long des bords (lentille), plus marquée en haut
+    float e = 7 * s;
+    for (int i = 0; i < 4; ++i) {
+        float t = i / 3.f;
+        dl->AddRect(ImVec2(a.x + 1 + t * e, a.y + 1 + t * e), ImVec2(b.x - 1 - t * e, b.y - 1 - t * e), IM_COL32(255, 255, 255, int((clear ? 16 : 10) * (1 - t))),
+                    std::max(0.f, rounding - t * e), 0, 1.5f * s);
+    }
+    sheen(dl, a, b, rounding, clear ? 0.16f : 0.11f);
+    // reflet spéculaire en diagonale, coin haut gauche
+    {
+        int v0 = dl->VtxBuffer.Size;
+        float w = std::min(b.x - a.x, 260 * s);
+        dl->AddRectFilled(ImVec2(a.x + 2, a.y + 2), ImVec2(a.x + w, a.y + std::min(b.y - a.y, 90 * s)), IM_COL32_WHITE, std::max(0.f, rounding - 2), ImDrawFlags_RoundCornersTopLeft);
+        for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
+            ImDrawVert& v = dl->VtxBuffer[i];
+            float t = std::clamp(((v.pos.x - a.x) / w + (v.pos.y - a.y) / (90 * s)), 0.f, 1.f);
+            v.col = (v.col & 0x00ffffff) | (unsigned(255 * (clear ? 0.08f : 0.05f) * (1 - t)) << 24);
+        }
+    }
+    // bord : liseré lumineux en haut, sombre en bas (contraste net)
+    dl->AddRect(ImVec2(a.x - 0.5f, a.y - 0.5f), ImVec2(b.x + 0.5f, b.y + 0.5f), IM_COL32(0, 0, 0, 150), rounding + 0.5f, 0, 1);
+    dl->AddRect(ImVec2(a.x + 0.5f, a.y + 0.5f), ImVec2(b.x - 0.5f, b.y - 0.5f), IM_COL32(255, 255, 255, clear ? 70 : 46), rounding, 0, 1);
+    dl->AddLine(ImVec2(a.x + rounding, a.y + 1), ImVec2(b.x - rounding, a.y + 1), IM_COL32(255, 255, 255, clear ? 120 : 90), 1);
+}
+
 void surface(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, ImU32 top, ImU32 bottom, float shadow) {
     float s = theme().scale;
     if (shadow > 0) dropShadow(dl, a, b, rounding, 12 * s * shadow, 0.55f);

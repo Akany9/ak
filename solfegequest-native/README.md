@@ -53,6 +53,14 @@ dans l'esprit de GarageBand / Logic / iOS 6 :
 - Rendu : liseré dans l'en-tête, teinte des régions, notes du piano roll, haut des tranches du mixeur, pastille dans l'en-tête des panneaux.
 - Enregistré dans la piste (`color`, `colorSet`) → inclus dans le `.sqproj` et dans **Annuler / Rétablir** (Ctrl+Z / Ctrl+Maj+Z).
 
+## Touches macOS 27 « Golden Gate »
+
+- **Barre d'outils unifiée** : barre du haut et transport forment un seul bloc, sans couture.
+- **Barre latérale bord à bord** dans Studio (Instruments), du bord gauche jusqu'en bas.
+- **Rayon d'angle uniforme** (`Theme::kRadius`) pour les fenêtres, panneaux, menus et cartes.
+- **Menus contextuels épurés** : plus d'icônes devant les commandes.
+- **Verre** limité au piano flottant et à la barre latérale du Studio : bord lumineux, réfraction régulière, contraste net. Réglage **teinté / clair** (bouton goutte), mémorisé dans workspace.json. La composition reste sans verre.
+
 ## Piano flottant (`src/piano.cpp`)
 
 Bouton clavier en haut à droite (ou **Ctrl+K**), disponible dans tous les modes. Fenêtre flottante, déplaçable par la poignée et redimensionnable ; le nombre d'octaves suit la largeur.

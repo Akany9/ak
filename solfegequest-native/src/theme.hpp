@@ -32,6 +32,8 @@ struct Theme {
     float dpi = 1.f;          // facteur DPI du moniteur
     void setUserScale(float u) { scale = u * dpi; fontsDirty = true; }
     bool fontsDirty = true;   // reconstruire l'atlas au prochain cadre
+    bool glassClear = false;  // verre (piano, Studio) : teinté (défaut) ou clair, comme le réglage de macOS 27
+    static constexpr float kRadius = 12;  // rayon d'angle uniforme des fenêtres, panneaux et cartes
     Fonts f;
 
     void buildFonts();        // à appeler avant NewFrame si fontsDirty

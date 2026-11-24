@@ -97,8 +97,7 @@ void App::pianoWindow() {
     ImVec2 wp = ImGui::GetWindowPos(), ws = ImGui::GetWindowSize();
     ImVec2 a(wp.x + 6 * s, wp.y + 4 * s), b(wp.x + ws.x - 6 * s, wp.y + ws.y - 8 * s);
     // boîtier : aluminium anodisé
-    skeuo::surface(dl, a, b, 14 * s, IM_COL32(64, 64, 70, 255), IM_COL32(36, 36, 40, 255), 2.f);
-    skeuo::material(dl, skeuo::Mat::Brushed, a, b, IM_COL32(255, 255, 255, 22), 14 * s, s);
+    skeuo::glass(dl, a, b, Theme::kRadius * s, 1.6f);
 
     // ---- barre de commandes (poignée de déplacement à gauche)
     float hh = ImGui::GetFrameHeight();
@@ -129,7 +128,7 @@ void App::pianoWindow() {
     // commandes à droite
     float bw = hh + 4 * s;
     float right = b.x - 10 * s;
-    float wCtl = bw * 2 + 60 * s + 150 * s + 90 * s + bw * 2 + 40 * s;
+    float wCtl = bw * 3 + 60 * s + 150 * s + 90 * s + bw * 2 + 44 * s;
     ImGui::SameLine(std::max(ImGui::GetCursorPosX() + 12 * s, right - wCtl - wp.x));
     if (skeuo::glossButton("octm", ICON_CHEVRON_LEFT, false, ImVec2(bw, hh), false, azerty ? "Octave − (W)" : "Octave − (Z)")) piano.octave = std::max(0, piano.octave - 1);
     ImGui::SameLine(0, 4 * s);
@@ -157,6 +156,10 @@ void App::pianoWindow() {
         tooltip("Vélocité (C / V)");
     }
     ImGui::SameLine(0, 14 * s);
+    if (skeuo::glossButton("glass", ICON_DROPLET, theme().glassClear, ImVec2(bw, hh), false,
+                           theme().glassClear ? "Verre : clair (cliquer pour teinté)" : "Verre : teinté (cliquer pour clair)"))
+        theme().glassClear = !theme().glassClear;
+    ImGui::SameLine(0, 4 * s);
     if (skeuo::glossButton("hints", ICON_KEYS, piano.hints, ImVec2(bw, hh), false, "Afficher les lettres du clavier d'ordinateur")) piano.hints = !piano.hints;
     ImGui::SameLine(0, 4 * s);
     bool canStep = !doc.selRegion.empty();

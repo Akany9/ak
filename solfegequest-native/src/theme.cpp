@@ -68,12 +68,12 @@ void Theme::buildFonts() {
 void Theme::applyStyle() {
     ImGuiStyle st;
     ImGui::StyleColorsDark(&st);
-    st.WindowRounding = 10;
-    st.ChildRounding = 8;
-    st.FrameRounding = 7;
-    st.PopupRounding = 10;
-    st.GrabRounding = 7;
-    st.TabRounding = 7;
+    st.WindowRounding = Theme::kRadius;   // un seul rayon pour toutes les fenêtres (macOS 27)
+    st.ChildRounding = Theme::kRadius;
+    st.FrameRounding = 8;
+    st.PopupRounding = Theme::kRadius;
+    st.GrabRounding = 8;
+    st.TabRounding = 8;
     st.ScrollbarRounding = 8;
     st.WindowBorderSize = 1;
     st.FrameBorderSize = 0;

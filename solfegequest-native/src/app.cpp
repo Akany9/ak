@@ -50,6 +50,7 @@ void App::init() {
             panels.load(j);
             if (j.contains("scale") && j["scale"].is_array())
                 for (size_t i = 0; i < 4 && i < j["scale"].size(); ++i) gScale[i] = std::clamp(j["scale"][i].get<float>(), 0.7f, 1.4f);
+            if (j.contains("glassClear") && j["glassClear"].is_boolean()) theme().glassClear = j["glassClear"].get<bool>();
             if (j.contains("mode")) mode = Mode(std::clamp(j["mode"].get<int>(), 0, 3));
         } catch (...) {
         }
@@ -197,6 +198,7 @@ void App::frame() {
         json j = json::object();
         j["scale"] = {gScale[0], gScale[1], gScale[2], gScale[3]};
         j["mode"] = int(mode);
+        j["glass"] = theme().glassClear;
         std::string s = j.dump();
         if (s != last) {
             last = s;
@@ -214,6 +216,7 @@ void App::frame() {
             json j = panels.save();
             j["scale"] = {gScale[0], gScale[1], gScale[2], gScale[3]};
             j["mode"] = int(mode);
+            j["glassClear"] = theme().glassClear;
             std::string s = j.dump();
             if (s != lastWsText) {
                 lastWsText = s;
@@ -254,16 +257,19 @@ static void beginRoot(const char* name) {
     skeuo::material(dl, skeuo::Mat::Grain, a, b, IM_COL32(255, 255, 255, 7), 0, theme().scale);
 }
 
-void App::topBar(const char* title, const char* icon) {
+void App::topBar(const char* title, const char* icon, bool unified) {
     float s = theme().scale;
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 p0 = ImGui::GetCursorScreenPos();
     float h = 50 * s;
     ImVec2 p1(p0.x + ImGui::GetContentRegionAvail().x, p0.y + h);
-    dl->AddRectFilledMultiColor(p0, p1, col::rgb(50, 50, 55), col::rgb(50, 50, 55), col::rgb(38, 38, 42), col::rgb(38, 38, 42));
-    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(255, 255, 255, 28), 0, s);
+    // barre d'outils unifiée (macOS 27) : un seul bloc continu avec la barre de transport, sans couture
+    ImU32 bot = unified ? col::rgb(46, 46, 51) : col::rgb(38, 38, 42);
+    dl->AddRectFilledMultiColor(p0, p1, col::rgb(54, 54, 59), col::rgb(54, 54, 59), bot, bot);
+    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(255, 255, 255, 24), 0, s);
     dl->AddLine(ImVec2(p0.x, p0.y), ImVec2(p1.x, p0.y), col::rgb(255, 255, 255, 40));
-    dl->AddLine(ImVec2(p0.x, p1.y - 1), ImVec2(p1.x, p1.y - 1), col::rgb(0, 0, 0, 200));
+    if (unified) dl->AddLine(ImVec2(p0.x + 18 * s, p1.y - 1), ImVec2(p1.x - 18 * s, p1.y - 1), col::rgb(255, 255, 255, 12));
+    else dl->AddLine(ImVec2(p0.x, p1.y - 1), ImVec2(p1.x, p1.y - 1), col::rgb(0, 0, 0, 200));
     ImGui::SetCursorScreenPos(ImVec2(p0.x + 12 * s, p0.y + (h - ImGui::GetFrameHeight()) / 2));
     // « ‹ Accueil »
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
@@ -370,11 +376,11 @@ void App::transportBar(bool full) {
     float s = theme().scale;
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 p0 = ImGui::GetCursorScreenPos();
+    p0.y -= ImGui::GetStyle().ItemSpacing.y;  // collé à la barre du haut : barre d'outils unifiée, sans couture
     float h = 58 * s;
     ImVec2 p1(p0.x + ImGui::GetContentRegionAvail().x, p0.y + h);
-    dl->AddRectFilledMultiColor(p0, p1, col::rgb(58, 58, 63), col::rgb(58, 58, 63), col::rgb(42, 42, 46), col::rgb(42, 42, 46));
-    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(255, 255, 255, 34), 0, s);
-    dl->AddLine(ImVec2(p0.x, p0.y), ImVec2(p1.x, p0.y), col::rgb(255, 255, 255, 45));
+    dl->AddRectFilledMultiColor(p0, p1, col::rgb(46, 46, 51), col::rgb(46, 46, 51), col::rgb(36, 36, 40), col::rgb(36, 36, 40));
+    skeuo::material(dl, skeuo::Mat::Brushed, p0, p1, col::rgb(255, 255, 255, 24), 0, s);
     dl->AddLine(ImVec2(p0.x, p1.y - 1), ImVec2(p1.x, p1.y - 1), col::rgb(0, 0, 0, 220));
     float bh = ImGui::GetFrameHeight() + 2 * s;
     ImGui::SetCursorScreenPos(ImVec2(p0.x + 18 * s, p0.y + (h - bh) / 2));
@@ -514,7 +520,7 @@ void App::transportBar(bool full) {
 
 void App::compScreen() {
     beginRoot("##comp");
-    topBar("Composition", ICON_KEYBOARD);
+    topBar("Composition", ICON_KEYBOARD, true);
     transportBar(true);
     ImGui::SetCursorPos(ImVec2(6 * theme().scale, ImGui::GetCursorPosY() + 6 * theme().scale));
     ImGui::BeginChild("##dockhost", ImVec2(-6 * theme().scale, -6 * theme().scale), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
@@ -538,21 +544,39 @@ void App::compScreen() {
 
 void App::studioScreen() {
     beginRoot("##studio");
-    topBar("Studio", ICON_MIXER);
+    topBar("Studio", ICON_MIXER, true);
     transportBar(false);
     float s = theme().scale;
-    ImGui::SetCursorPos(ImVec2(12 * s, ImGui::GetCursorPosY() + 10 * s));
-    ImGui::BeginChild("##stbody", ImVec2(-12 * s, -12 * s));
-    float w = ImGui::GetContentRegionAvail().x;
-    ImGui::BeginChild("##stinst", ImVec2(w * 0.28f, 0), ImGuiChildFlags_Borders);
+    // barre latérale bord à bord (macOS 27) : du bord gauche jusqu'en bas, en verre
+    ImVec2 wp = ImGui::GetWindowPos(), ws = ImGui::GetWindowSize();
+    float y0 = ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y;  // collée sous la barre d'outils
+    float sw = std::round(std::clamp(ws.x * 0.27f, 260 * s, 420 * s));
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImVec2 a(wp.x, y0), b(wp.x + sw, wp.y + ws.y);
+        dl->PushClipRect(a, b, true);
+        skeuo::glass(dl, ImVec2(a.x - 40 * s, a.y - 2), ImVec2(b.x, b.y + 40 * s), 0, 0);  // bords extérieurs hors champ
+        dl->PopClipRect();
+        dl->AddLine(ImVec2(b.x, a.y), ImVec2(b.x, b.y), col::rgb(0, 0, 0, 200));
+        dl->AddLine(ImVec2(b.x - 1, a.y), ImVec2(b.x - 1, b.y), col::rgb(255, 255, 255, 22));
+    }
+    ImGui::SetCursorScreenPos(ImVec2(wp.x, y0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16 * s, 14 * s));
+    ImGui::BeginChild("##stinst", ImVec2(sw, ws.y - (y0 - wp.y)), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoBackground);
+    ImGui::PopStyleVar();
     ImGui::PushFont(theme().f.title);
     ImGui::TextUnformatted("Instruments");
     ImGui::PopFont();
+    ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::GetFrameHeight());
+    if (skeuo::glossButton("stglass", ICON_DROPLET, theme().glassClear, ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight()), false,
+                           theme().glassClear ? "Verre : clair (cliquer pour teinté)" : "Verre : teinté (cliquer pour clair)"))
+        theme().glassClear = !theme().glassClear;
     ImGui::TextDisabled("Choisir le son de la piste sélectionnée");
-    ImGui::Separator();
+    ImGui::Spacing();
     browserPanel();
     ImGui::EndChild();
-    ImGui::SameLine();
+    ImGui::SetCursorScreenPos(ImVec2(wp.x + sw + 14 * s, y0 + 14 * s));
+    ImGui::BeginChild("##stbody", ImVec2(-14 * s, -14 * s));
     ImGui::BeginChild("##stcons", ImVec2(0, 0), ImGuiChildFlags_Borders);
     ImGui::PushFont(theme().f.title);
     ImGui::TextUnformatted("Console de mixage");

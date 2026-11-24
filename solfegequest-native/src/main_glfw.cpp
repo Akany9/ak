@@ -67,6 +67,7 @@ static void runTest(const std::string& script, ImVec2* hover) {
         if (k == "play") audio().play();
         if (k == "home") a.homeCard = std::atoi(v.c_str());
         if (k == "piano") a.piano.open = true;
+        if (k == "clear") theme().glassClear = true;
         if (k == "step") { a.piano.step = true; }
         if (k == "note") a.pianoPress(std::atoi(v.c_str()), true);
     }

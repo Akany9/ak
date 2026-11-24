@@ -28,6 +28,8 @@ void surface(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, ImU32 top, ImU3
 void well(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding);
 void sheen(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float alpha = 0.10f);       // lumière douce en haut
 void glossTile(ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 top, ImU32 bottom, float rounding);  // tuile d'icône
+// Verre façon macOS 27 : réfraction régulière, bord lumineux, contraste renforcé ; teinté ou clair (theme().glassClear)
+void glass(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding, float shadow = 1.f);
 void lcd(ImDrawList* dl, ImVec2 a, ImVec2 b, float rounding);                               // écran rétroéclairé
 void glowText(ImDrawList* dl, ImFont* f, float size, ImVec2 p, ImU32 col, const char* text);
 void ledMeter(ImDrawList* dl, ImVec2 a, ImVec2 b, float level, bool vertical = true);

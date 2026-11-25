@@ -9,7 +9,7 @@
 
 namespace cl::ui {
 
-struct MathFonts { ImFont* roman = nullptr; ImFont* italic = nullptr; ImFont* ui = nullptr; ImFont* mono = nullptr; };
+struct MathFonts { ImFont* roman = nullptr; ImFont* italic = nullptr; ImFont* ui = nullptr; ImFont* mono = nullptr; ImFont* title = nullptr; ImFont* display = nullptr; };
 inline MathFonts& Fonts() { static MathFonts f; return f; }
 
 inline double MeasureText(const std::string& s, double size, int style) {
@@ -19,8 +19,9 @@ inline double MeasureText(const std::string& s, double size, int style) {
 }
 
 // Mise en page mémorisée (clé : taille + source).
+inline std::unordered_map<std::string, math::Box>& TypesetCache() { static std::unordered_map<std::string, math::Box> c; return c; }
 inline const math::Box& Typeset(const std::string& latex, float size) {
-    static std::unordered_map<std::string, math::Box> cache;
+    auto& cache = TypesetCache();
     std::string key = std::to_string((int)(size * 10)) + "|" + latex;
     auto it = cache.find(key);
     if (it != cache.end()) return it->second;

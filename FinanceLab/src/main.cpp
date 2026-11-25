@@ -18,6 +18,8 @@
 #include "core/ProjectFile.hpp"
 #include "core/UndoJournal.hpp"
 #include "platform/FileDialogs.hpp"
+#include "ui/Effects.hpp"
+#include "ui/Fonts.hpp"
 #include "ui/MathRender.hpp"
 #include "ui/Plot.hpp"
 #include "ui/Theme.hpp"
@@ -25,6 +27,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <filesystem>
 #include <functional>
 #include <sstream>
@@ -60,6 +63,11 @@ public:
     enum Tab { kStudy = 0, kCourses, kBoard, kSheet, kPlots };
     int tab = 0, exIdx = 0, hintsShown = 0, sel_r = 0, sel_c = 0, studyTab = 1;
     bool notesPreview = false;
+    // affichage
+    float uiScale = 1.0f;           // préférence utilisateur (0,8 à 1,75), multipliée par l'échelle de l'écran
+    bool uiDirty = false;           // polices / style à reconstruire avant la prochaine image
+    bool showInspector = false;     // inspecteur d'étalonnage du tableau blanc
+    fs::path prefsPath;
     std::vector<CourseModule> modules = BuiltinModules();
     std::vector<SupportDoc> supports = BuiltinSupports();
     int modIdx = 0, supIdx = -1;
@@ -88,6 +96,7 @@ public:
     App() {
         char* pref = SDL_GetPrefPath("FinanceLab", "Studio");
         sessionPath = fs::path(pref ? pref : ".") / "session.financelab";
+        prefsPath = fs::path(pref ? pref : ".") / "preferences.ini";
         coursesDir = fs::path(pref ? pref : ".") / "courses";
         if (const char* base = SDL_GetBasePath()) coursesDir2 = fs::path(base) / "courses";
         if (pref) SDL_free(pref);
@@ -95,6 +104,27 @@ public:
         NewProject(false);
         if (auto r = AutoSave::FindRecovery(sessionPath)) { recoveryFile = *r; recoveryTarget.clear(); openRecovery = true; }
     }
+
+    // ------------------------------------------------------------------ préférences d'affichage
+    void LoadPrefs() {
+        std::ifstream in(prefsPath); std::string line;
+        while (std::getline(in, line)) {
+            size_t q = line.find('='); if (q == std::string::npos) continue;
+            std::string k = line.substr(0, q), v = line.substr(q + 1);
+            if (k == "ui_scale") uiScale = std::clamp((float)std::atof(v.c_str()), 0.8f, 1.75f);
+            else if (k == "dark") dark = v == "1";
+            else if (k == "autosave") autosave.enabled = v == "1";
+        }
+    }
+    void SavePrefs() const {
+        std::ofstream out(prefsPath);
+        out << "ui_scale=" << uiScale << "\ndark=" << (dark ? 1 : 0) << "\nautosave=" << (autosave.enabled ? 1 : 0) << "\n";
+    }
+    void SetScale(float v) {
+        v = std::clamp(std::round(v * 20.0f) / 20.0f, 0.8f, 1.75f);
+        if (std::fabs(v - uiScale) > 1e-3f) { uiScale = v; uiDirty = true; status = "Échelle de l'interface : " + std::to_string((int)std::lround(v * 100)) + " %"; SavePrefs(); }
+    }
+    void SetDark(bool d) { if (d != dark) { dark = d; ui::Apply(dark); SavePrefs(); } }
 
     // ------------------------------------------------------------------ état <-> modèle
     // Re-sérialise la base SQLite uniquement si elle a changé depuis la dernière photographie.
@@ -279,59 +309,158 @@ public:
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) { if (io.KeyShift) SaveAs(); else SaveCmd(); }
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O)) Guard(Pending::Open);
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_N)) Guard(Pending::New);
+        if (io.KeyCtrl && !io.WantTextInput) {                          // échelle : Ctrl + / Ctrl - / Ctrl 0
+            if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) SetScale(uiScale + 0.05f);
+            if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) SetScale(uiScale - 0.05f);
+            if (ImGui::IsKeyPressed(ImGuiKey_0) || ImGui::IsKeyPressed(ImGuiKey_Keypad0)) SetScale(1.0f);
+        }
 
         std::string title = "FinanceLab - " + DisplayName() + (modified ? " *" : "");
         static std::string lastTitle; if (title != lastTitle) { SDL_SetWindowTitle(win, title.c_str()); lastTitle = title; }
 
         const ImGuiViewport* vp = ImGui::GetMainViewport();
+        const ui::Palette& pal = ui::Pal();
+        // Fond de fenêtre : dégradé vertical + bande de barre d'outils unifiée et barre d'état (style NSWindow).
+        float barH = ui::S(52), statusH = ui::S(28);
+        ImDrawList* bg = ImGui::GetBackgroundDrawList();
+        ImVec2 a = vp->Pos, b(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y);
+        bg->AddRectFilledMultiColor(a, b, ui::U32(pal.bgTop), ui::U32(pal.bgTop), ui::U32(pal.bgBottom), ui::U32(pal.bgBottom));
+        bg->AddRectFilledMultiColor(a, {b.x, a.y + barH}, ui::U32(ui::WithAlpha(pal.bar, 1)), ui::U32(ui::WithAlpha(pal.bar, 1)), ui::U32(ui::WithAlpha(pal.bgTop, 1)), ui::U32(ui::WithAlpha(pal.bgTop, 1)));
+        bg->AddLine({a.x, a.y + barH}, {b.x, a.y + barH}, ui::U32(pal.hairline), 1);
+        bg->AddLine({a.x, a.y + 0.5f}, {b.x, a.y + 0.5f}, ui::U32(ImVec4(1, 1, 1, dark ? 0.08f : 0.9f)), 1);
+        bg->AddRectFilled({a.x, b.y - statusH}, b, ui::U32(ui::WithAlpha(pal.bar, 0.9f)));
+        bg->AddLine({a.x, b.y - statusH}, {b.x, b.y - statusH}, ui::U32(pal.hairline), 1);
+
         ImGui::SetNextWindowPos(vp->WorkPos); ImGui::SetNextWindowSize(vp->WorkSize);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ui::S(ImVec2(12, 0)));
         ImGui::Begin("##shell", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoSavedSettings);
-        Toolbar();
-        float histW = showHistory ? 250.0f : 0.0f;
-        ImGui::BeginChild("main", ImVec2(-histW - (showHistory ? 8 : 0), -26), false);
+        ImGui::PopStyleVar(2); ImGui::PopStyleColor();
+        Toolbar(barH);
+        ImGui::SetCursorPosY(barH + ui::S(10));
+        float histW = showHistory ? ui::S(250) : 0.0f;
+        ImGui::BeginChild("main", ImVec2(-histW - (showHistory ? ui::S(10) : 0), -statusH - ui::S(10)), false);
         if (tab == kStudy) StudyTab(); else if (tab == kCourses) CoursesTab();
-        else if (tab == kBoard) { WbToolbar(); auto o = wb.Render(doc, ImVec2(0, 0), dark); if (o.changed) Commit(o.label); }
+        else if (tab == kBoard) BoardTab();
         else if (tab == kSheet) SheetTab(); else plot.Render(py, sheet, ImVec2(0, 0), dark);
         ImGui::EndChild();
-        if (showHistory) { ImGui::SameLine(); HistoryPanel(); }
-        StatusBar();
+        if (showHistory) { ImGui::SameLine(0, ui::S(10)); HistoryPanel(statusH); }
+        StatusBar(statusH);
         ImGui::End();
         Modals();
     }
 
-    void Toolbar() {
-        ImGui::BeginChild("tb", ImVec2(0, 48), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_HorizontalScrollbar);
-        if (ImGui::Button("Nouveau")) Guard(Pending::New);
-        ImGui::SameLine(); if (ImGui::Button("Ouvrir...")) Guard(Pending::Open);
-        ImGui::SameLine(); if (ImGui::Button("Enregistrer")) SaveCmd();
-        ImGui::SameLine(); if (ImGui::Button("Enregistrer sous...")) SaveAs();
-        ImGui::SameLine(0, 16);
-        ImGui::BeginDisabled(!journal.CanUndo()); if (ImGui::Button("Annuler")) Undo(); ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && journal.CanUndo()) ImGui::SetTooltip("Annuler : %s", journal.UndoLabel().c_str());
-        ImGui::SameLine(); ImGui::BeginDisabled(!journal.CanRedo()); if (ImGui::Button("Rétablir")) Redo(); ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && journal.CanRedo()) ImGui::SetTooltip("Rétablir : %s", journal.RedoLabel().c_str());
-        ImGui::SameLine(); if (ImGui::Button(showHistory ? "Masquer historique" : "Historique")) showHistory = !showHistory;
-        ImGui::SameLine(0, 16); if (ImGui::Button("Importer CSV/TSV...")) PickCsv();
-        ImGui::SameLine(); if (ImGui::Button("Exporter fiche...")) PickExport();
-        ImGui::SameLine(0, 16);
+    // Barre d'outils unifiée : marque (Valky) · fichier · édition · onglets centrés · import/export · affichage.
+    void Toolbar(float barH) {
+        ImGui::SetCursorPos({ImGui::GetStyle().WindowPadding.x, 0});
+        ImGui::BeginChild("tb", ImVec2(0, barH), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground);
+        float fh = ImGui::GetFrameHeight(), y = (barH - fh) * 0.5f, W = ImGui::GetWindowWidth();
+        auto tw = [](const char* l) { return ImGui::CalcTextSize(l, nullptr, true).x + ImGui::GetStyle().FramePadding.x * 2; };
         const char* tabs[] = {"Étude", "Cours", "Whiteboard", "Tableur", "Graphiques"};
+        float segW = ui::SegmentedWidth(tabs, 5), sp = ui::S(2);
+        float brandW = ui::Fonts().title ? ui::Fonts().title->CalcTextSizeA(ui::Fonts().title->FontSize * ImGui::GetIO().FontGlobalScale, 1e9f, 0, "FinanceLab").x + ui::S(14) : 0;
+        float leftW = tw("Nouveau") + tw("Ouvrir…") + tw("Enregistrer") + tw("Annuler") + tw("Rétablir") + tw("Historique") + sp * 4 + ui::S(10);
+        float rightFull = tw("Importer…") + tw("Exporter…") + tw("Affichage") + sp * 2 + ui::S(8);
+        float rightCompact = tw("Fichiers") + tw("Affichage") + sp + ui::S(8);
+        float gaps = ui::S(32);
+        // Repli progressif quand la place manque (petite fenêtre ou grande échelle) : marque masquée, import/export regroupés.
+        bool showBrand = brandW + leftW + segW + rightFull + gaps <= W;
+        bool compact = !showBrand && leftW + segW + rightFull + gaps > W;
+        float rightW = compact ? rightCompact : rightFull;
+        ImGui::SetCursorPosY(y);
+        if (showBrand) {
+            if (ui::Fonts().title) ImGui::PushFont(ui::Fonts().title);
+            ImGui::SetCursorPosY((barH - ImGui::GetFontSize()) * 0.5f - ui::S(1));
+            ImGui::TextUnformatted("FinanceLab");
+            if (ui::Fonts().title) ImGui::PopFont();
+            ImGui::SameLine(0, ui::S(14)); ImGui::SetCursorPosY(y);
+        }
+        if (ui::ToolButton("Nouveau")) Guard(Pending::New);
+        ImGui::SameLine(0, sp); if (ui::ToolButton("Ouvrir…")) Guard(Pending::Open);
+        ImGui::SameLine(0, sp); if (ui::ToolButton("Enregistrer")) SaveCmd();
+        if (ImGui::BeginPopupContextItem("saveas")) { if (ImGui::MenuItem("Enregistrer sous…", "Ctrl+Maj+S")) SaveAs(); ImGui::EndPopup(); }
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) ImGui::SetTooltip("Ctrl+S  ·  clic droit : Enregistrer sous…");
+        ImGui::SameLine(0, ui::S(10));
+        ImGui::BeginDisabled(!journal.CanUndo()); if (ui::ToolButton("Annuler")) Undo(); ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && journal.CanUndo()) ImGui::SetTooltip("Annuler : %s", journal.UndoLabel().c_str());
+        ImGui::SameLine(0, sp); ImGui::BeginDisabled(!journal.CanRedo()); if (ui::ToolButton("Rétablir")) Redo(); ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && journal.CanRedo()) ImGui::SetTooltip("Rétablir : %s", journal.RedoLabel().c_str());
+        ImGui::SameLine(0, sp); if (ui::ToolButton("Historique", showHistory)) showHistory = !showHistory;
+        float leftEnd = ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x;
+        float segX = std::max(leftEnd + ui::S(16), (W - segW) * 0.5f);
+        if (segX + segW > W - rightW - ui::S(12)) segX = leftEnd + ui::S(16);
+        ImGui::SameLine(); ImGui::SetCursorPos({segX, y});
         ui::Segmented("tabs", tabs, 5, &tab);
-        ImGui::SameLine(); if (ImGui::Button(dark ? "Clair" : "Sombre")) { dark = !dark; ui::Apply(dark); }
+        ImGui::SameLine(); ImGui::SetCursorPos({std::max(segX + segW + ui::S(12), W - rightW), y});
+        if (compact) {
+            if (ui::ToolButton("Fichiers", ImGui::IsPopupOpen("files"))) ImGui::OpenPopup("files");
+            if (ImGui::BeginPopup("files")) {
+                if (ImGui::MenuItem("Importer CSV / TSV…")) PickCsv();
+                if (ImGui::MenuItem("Exporter la fiche de révision…")) PickExport();
+                if (ImGui::MenuItem("Enregistrer sous…", "Ctrl+Maj+S")) SaveAs();
+                ImGui::EndPopup();
+            }
+        } else {
+            if (ui::ToolButton("Importer…")) PickCsv();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) ImGui::SetTooltip("Importer un fichier CSV / TSV (tableur ou SQLite)");
+            ImGui::SameLine(0, sp); if (ui::ToolButton("Exporter…")) PickExport();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) ImGui::SetTooltip("Exporter la fiche de révision (HTML + Markdown)");
+        }
+        ImGui::SameLine(0, sp); if (ui::ToolButton("Affichage", ImGui::IsPopupOpen("prefs"))) ImGui::OpenPopup("prefs");
+        PrefsPopover();
         ImGui::EndChild();
     }
 
-    void StatusBar() {
-        ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 24);
-        ImGui::TextDisabled("%s", status.c_str());
-        ImGui::SameLine(ImGui::GetWindowWidth() - 330);
-        ImGui::Checkbox("Auto-sauvegarde", &autosave.enabled);
-        ImGui::SameLine(); ImGui::SetNextItemWidth(70);
-        int iv = (int)autosave.intervalSec; if (ImGui::DragInt("##iv", &iv, 1, 10, 600, "%d s")) autosave.intervalSec = iv;
+    // Popover « Affichage » : échelle de l'interface, apparence, polices et shaders détectés.
+    void PrefsPopover() {
+        ImGui::SetNextWindowSize({ui::S(330), 0});
+        if (!ImGui::BeginPopup("prefs")) return;
+        ui::SectionLabel("ÉCHELLE DE L'INTERFACE");
+        float pct = uiScale * 100.0f;
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::SliderFloat("##scale", &pct, 80, 175, "%.0f %%")) {}
+        if (ImGui::IsItemDeactivatedAfterEdit()) SetScale(pct / 100.0f);
+        const float presets[] = {0.9f, 1.0f, 1.1f, 1.25f, 1.5f};
+        for (int i = 0; i < 5; ++i) {
+            if (i) ImGui::SameLine(0, ui::S(4));
+            char lb[16]; std::snprintf(lb, sizeof lb, "%d %%", (int)std::lround(presets[i] * 100));
+            if (ui::Button(lb, {(ImGui::GetContentRegionAvail().x - ui::S(4) * (4 - i)) / (5 - i), 0}, std::fabs(presets[i] - uiScale) < 1e-3f)) SetScale(presets[i]);
+        }
+        ImGui::TextDisabled("Raccourcis : Ctrl + / Ctrl - / Ctrl 0");
+        ImGui::Spacing(); ui::SectionLabel("APPARENCE");
+        int mode = dark ? 1 : 0; const char* modes[] = {"Clair", "Sombre"};
+        if (ui::Segmented("theme", modes, 2, &mode)) SetDark(mode == 1);
+        ImGui::Spacing(); ui::SectionLabel("POLICES");
+        ImGui::TextDisabled("Interface : %s", ui::FontInfo().ui.c_str());
+        ImGui::TextDisabled("Titres : %s", ui::FontInfo().title.c_str());
+        ImGui::TextDisabled("Code : %s", ui::FontInfo().mono.c_str());
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + ui::S(300));
+        ImGui::TextDisabled("Déposez SF-Pro-Text-Regular.otf et Valky-Regular.otf dans assets/fonts pour les activer.");
+        ImGui::PopTextWrapPos();
+        ImGui::Spacing(); ui::SectionLabel("RENDU");
+        ImGui::TextDisabled("Shaders GLSL (fonds, étalonnage, verre) : %s", ui::fx::Available() ? "actifs" : "indisponibles");
+        ImGui::EndPopup();
     }
 
-    void HistoryPanel() {
-        ImGui::BeginChild("hist", ImVec2(250, -26), true);
-        ImGui::TextDisabled("HISTORIQUE (%zu)", journal.Entries().size());
+    void StatusBar(float statusH) {
+        float y = ImGui::GetWindowHeight() - statusH;
+        ImGui::SetCursorPosY(y + (statusH - ImGui::GetFontSize()) * 0.5f);
+        ImGui::TextDisabled("%s", status.c_str());
+        ImGui::SetWindowFontScale(0.92f);
+        float fh = ImGui::GetFrameHeight();
+        float w = ui::S(250);
+        ImGui::SameLine(ImGui::GetWindowWidth() - w);
+        ImGui::SetCursorPosY(y + (statusH - fh) * 0.5f);
+        if (ui::Switch("Auto-sauvegarde", &autosave.enabled)) SavePrefs();
+        ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(64)); ImGui::SetCursorPosY(y + (statusH - fh) * 0.5f);
+        int iv = (int)autosave.intervalSec; if (ImGui::DragInt("##iv", &iv, 1, 10, 600, "%d s")) autosave.intervalSec = iv;
+        ImGui::SetWindowFontScale(1.0f);
+    }
+
+    void HistoryPanel(float statusH) {
+        ui::BeginCard("hist", ImVec2(ui::S(250), -statusH - ui::S(10)));
+        ui::SectionLabel(("HISTORIQUE (" + std::to_string(journal.Entries().size()) + ")").c_str());
         ImGui::Separator();
         const auto& e = journal.Entries();
         for (int i = (int)e.size() - 1; i >= 0; --i) {
@@ -347,14 +476,14 @@ public:
                 if (auto s = journal.JumpTo((size_t)i)) { Apply(*s); status = "Retour à : " + e[i].label; Touch(); }
             }
         }
-        ImGui::EndChild();
+        ui::EndCard();
     }
 
     // ---------------------------------------------------------------- onglet Étude
     void StudyTab() {
         const Exercise& ex = exercises[exIdx];
         float w = ImGui::GetContentRegionAvail().x * 0.48f;
-        ImGui::BeginChild("left", ImVec2(w, 0), true);
+        ui::BeginCard("left", ImVec2(w, 0));
         ImGui::SetNextItemWidth(-1);
         if (ImGui::BeginCombo("##ex", (ex.id + " - " + ex.title).c_str())) {
             for (int i = 0; i < (int)exercises.size(); ++i)
@@ -364,12 +493,12 @@ public:
         ImGui::TextWrapped("Intuition : %s", ex.intuition.c_str());
         ImGui::TextDisabled("Formalisation"); ImGui::TextWrapped("%s", ex.spec.c_str());
         ImGui::TextWrapped("Consigne : %s", ex.task.c_str());
-        if (ImGui::Button("Charger le code de départ")) {
+        if (ui::Button("Charger le code de départ")) {
             (ex.domain == ExDomain::Sql ? doc.sql : doc.python) = ex.starter; Commit("Code de départ " + ex.id);
         }
-        ImGui::SameLine(); if (ImGui::Button("Indice")) hintsShown = std::min<int>(hintsShown + 1, (int)ex.hints.size());
+        ImGui::SameLine(); if (ui::Button("Indice")) hintsShown = std::min<int>(hintsShown + 1, (int)ex.hints.size());
         ImGui::SameLine();
-        if (ImGui::Button("Vérifier ma solution")) {
+        if (ui::Button("Vérifier ma solution", {0, 0}, true)) {
             if (ex.domain == ExDomain::Python) { pyRes = py.Run(doc.python); if (pyRes.success) plot.Sync(py, sheet); }
             else { sqlRes = db.Execute(doc.sql); AfterSql("Exécution SQL"); }
             auto r = ex.validate(db, py, sqlRes); exOk = r.first; exMsg = r.second;
@@ -382,11 +511,11 @@ public:
         else { ImGui::InputTextMultiline("##notes", &doc.notes, ImVec2(-1, -1)); TextEdited("Notes", "notes"); }
         ImGui::EndChild();
 
-        ImGui::SameLine();
+        ImGui::SameLine(0, ui::S(10));
         ImGui::BeginChild("right", ImVec2(0, 0), false);
         if (ImGui::BeginTabBar("rt")) {
             if (ImGui::BeginTabItem("Python", nullptr, studyTab == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
-                if (ImGui::Button("Exécuter")) { pyRes = py.Run(doc.python); if (pyRes.success) plot.Sync(py, sheet); }
+                if (ui::Button("Exécuter")) { pyRes = py.Run(doc.python); if (pyRes.success) plot.Sync(py, sheet); }
                 if (!PythonSandbox::kAvailable) { ImGui::SameLine(); ImGui::TextColored(ui::Danger(dark), "Python non compilé"); }
                 if (ui::Fonts().mono) ImGui::PushFont(ui::Fonts().mono);
                 ImGui::InputTextMultiline("##py", &doc.python, ImVec2(-1, ImGui::GetContentRegionAvail().y * 0.6f));
@@ -398,12 +527,12 @@ public:
                 ImGui::EndChild(); ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("SQLite3", nullptr, studyTab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
-                if (ImGui::Button("Exécuter SQL")) { sqlRes = db.Execute(doc.sql); AfterSql("Exécution SQL"); }
-                ImGui::SameLine(); if (ImGui::Button("Envoyer vers le tableur")) { sheet.ImportSql(sqlRes); Commit("SQL vers tableur"); tab = kSheet; }
+                if (ui::Button("Exécuter SQL")) { sqlRes = db.Execute(doc.sql); AfterSql("Exécution SQL"); }
+                ImGui::SameLine(); if (ui::Button("Envoyer vers le tableur")) { sheet.ImportSql(sqlRes); Commit("SQL vers tableur"); tab = kSheet; }
                 ImGui::SameLine(); ImGui::TextDisabled("Tables :");
                 for (auto& t : db.ListTables()) { ImGui::SameLine(); if (ImGui::SmallButton(t.c_str())) { doc.sql = "SELECT * FROM " + Database::QuoteIdent(t) + " LIMIT 50;"; sqlRes = db.Execute(doc.sql); Commit("Explorer " + t); } }
                 if (ui::Fonts().mono) ImGui::PushFont(ui::Fonts().mono);
-                ImGui::InputTextMultiline("##sql", &doc.sql, ImVec2(-1, 130));
+                ImGui::InputTextMultiline("##sql", &doc.sql, ImVec2(-1, ui::S(130)));
                 if (ui::Fonts().mono) ImGui::PopFont();
                 TextEdited("Requête SQL", "sql");
                 if (!sqlRes.success && !sqlRes.error.empty()) ImGui::TextColored(ui::Danger(dark), "%s", sqlRes.error.c_str());
@@ -430,41 +559,118 @@ public:
         (void)key;
     }
 
-    // ---------------------------------------------------------------- barre d'outils du whiteboard
+    // ---------------------------------------------------------------- onglet Whiteboard (barre d'outils + inspecteur)
+    void BoardTab() {
+        WbToolbar();
+        ImGui::Spacing();
+        float iw = showInspector ? ui::S(268) : 0.0f;
+        auto o = wb.Render(doc, ImVec2(showInspector ? -iw - ui::S(10) : 0, 0), dark);
+        if (o.changed) Commit(o.label);
+        if (showInspector) { ImGui::SameLine(0, ui::S(10)); Inspector(iw); }
+    }
+
     void WbToolbar() {
-        ImGui::BeginChild("wbtb", ImVec2(0, 84), true, ImGuiWindowFlags_NoScrollbar);
-        const char* tools[] = {"Stylo", "Surligneur", "Gomme", "Bloc", "Lien", "Équation"};
-        int t = (int)wb.tool; if (ui::Segmented("wbtools", tools, 6, &t)) wb.tool = (ui::Tool)t;
+        float rowH = ImGui::GetFrameHeight();
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ui::S(ImVec2(10, 8)));
+        ui::BeginCard("wbtb", ImVec2(0, rowH * 2 + ui::S(8) * 2 + ImGui::GetStyle().ItemSpacing.y), ImGuiWindowFlags_NoScrollbar);
+        ImGui::PopStyleVar();
+        const char* tools[] = {"Stylo", "Surligneur", "Gomme", "Bloc", "Lien", "Équation", "Élément"};
+        int t = (int)wb.tool; if (ui::Segmented("wbtools", tools, 7, &t)) { wb.tool = (ui::Tool)t; wb.Deselect(); }
+        if (wb.tool == ui::Tool::Element) {
+            ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(120));
+            ImGui::Combo("##kind", &wb.shapeKind, ui::ShapeNames(), (int)ShapeKind::Count);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) ImGui::SetTooltip("Cartons de montage : cliquez pour poser, glissez pour dimensionner.\nLa poignée blanche redimensionne, Suppr efface.");
+        }
         ImGui::SameLine(); ImGui::ColorEdit3("##ink", wb.color, ImGuiColorEditFlags_NoInputs);
-        ImGui::SameLine(0, 16); ImGui::SetNextItemWidth(190);
+        ImGui::SameLine(0, ui::S(14)); ImGui::SetNextItemWidth(ui::S(170));
         std::vector<std::string> names; for (auto& l : doc.layers) names.push_back(l.name);
         wb.activeLayer = std::clamp(wb.activeLayer, 0, (int)doc.layers.size() - 1);
         if (ImGui::BeginCombo("##layer", doc.layers[wb.activeLayer].name.c_str())) {
             for (int i = 0; i < (int)names.size(); ++i) if (ImGui::Selectable(names[i].c_str(), i == wb.activeLayer)) wb.activeLayer = i;
             ImGui::EndCombo();
         }
-        ImGui::SameLine(); if (ImGui::Checkbox("Visible", &doc.layers[wb.activeLayer].visible)) Commit("Visibilité du calque");
-        ImGui::SameLine(); ImGui::SetNextItemWidth(135);
+        ImGui::SameLine(); if (ui::Switch("Visible", &doc.layers[wb.activeLayer].visible)) Commit("Visibilité du calque");
+        ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(120));
         ImGui::SliderFloat("##lop", &doc.layers[wb.activeLayer].opacity, 0.1f, 1.0f, "opacité %.2f");
         if (ImGui::IsItemDeactivatedAfterEdit()) Commit("Opacité du calque");
-        ImGui::SameLine(); if (ImGui::Button("+ Calque")) { doc.layers.push_back({"Calque " + std::to_string(doc.layers.size() + 1), true, 1.0f}); wb.activeLayer = (int)doc.layers.size() - 1; Commit("Nouveau calque"); }
-        ImGui::SameLine(); if (ImGui::Button("Effacer les tracés")) { doc.strokes.clear(); Commit("Effacer les tracés"); }
-        // ligne 2 : support de cours PDF
-        if (ImGui::Button("Ouvrir un PDF de cours...")) PickPdf();
+        ImGui::SameLine(); if (ui::Button("+ Calque")) { doc.layers.push_back({"Calque " + std::to_string(doc.layers.size() + 1), true, 1.0f}); wb.activeLayer = (int)doc.layers.size() - 1; Commit("Nouveau calque"); }
+        ImGui::SameLine(); if (ui::Button("Effacer les tracés")) { doc.strokes.clear(); Commit("Effacer les tracés"); }
+        // ligne 2 : support de cours PDF · fond · étalonnage
+        if (ui::Button("Ouvrir un PDF de cours…")) PickPdf();
         if (wb.pdf.Loaded()) {
-            ImGui::SameLine(); ImGui::TextDisabled("%s", wb.pdf.Path().filename().string().c_str());
-            ImGui::SameLine(); ImGui::Text("Page"); ImGui::SameLine(); ImGui::SetNextItemWidth(90);
+            ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("%s", wb.pdf.Path().filename().string().c_str());
+            ImGui::SameLine(); ImGui::Text("Page"); ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(88));
             int pg = wb.CurrentPdfPage() + 1;
             if (ImGui::InputInt("##pg", &pg, 1, 5)) wb.JumpToPdfPage(std::clamp(pg, 1, wb.pdf.PageCount()) - 1);
             ImGui::SameLine(); ImGui::Text("/ %d", wb.pdf.PageCount());
-            ImGui::SameLine(); ImGui::Checkbox("Afficher le PDF", &wb.pdfVisible);
-            ImGui::SameLine(); ImGui::SetNextItemWidth(160); ImGui::SliderFloat("##po", &wb.pdfOpacity, 0.15f, 1.0f, "opacité PDF %.2f");
+            ImGui::SameLine(); ui::Switch("PDF", &wb.pdfVisible);
+            ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(130)); ImGui::SliderFloat("##po", &wb.pdfOpacity, 0.15f, 1.0f, "opacité %.2f");
             if (ImGui::IsItemDeactivatedAfterEdit()) Touch();
-            ImGui::SameLine(); if (ImGui::Button("Retirer le PDF")) { wb.ClosePdf(); doc.pdfPath.clear(); Commit("Retirer le PDF"); }
+            ImGui::SameLine(); if (ui::Button("Retirer")) { wb.ClosePdf(); doc.pdfPath.clear(); Commit("Retirer le PDF"); }
         } else {
-            ImGui::SameLine(); ImGui::TextDisabled(PdfDocument_Available() ? "Les surlignages et notes restent ancrés au texte du cours." : "Lecteur PDF non compilé dans cette version.");
+            ImGui::SameLine(); ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled(PdfDocument_Available() ? "Surlignages et notes restent ancrés au texte du cours." : "Lecteur PDF non compilé dans cette version.");
         }
-        ImGui::EndChild();
+        // groupe de droite : fond procédural + inspecteur
+        float comboW = ui::S(130), btnW = ui::ButtonWidth("Étalonnage");
+        float x = ImGui::GetWindowContentRegionMax().x - comboW - btnW - ImGui::CalcTextSize("Fond").x - ImGui::GetStyle().ItemSpacing.x * 3;
+        ImGui::SameLine(); if (ImGui::GetCursorPosX() < x) ImGui::SetCursorPosX(x);
+        ImGui::BeginDisabled(!ui::fx::Available());
+        ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("Fond"); ImGui::SameLine(); ImGui::SetNextItemWidth(comboW);
+        if (ImGui::Combo("##bg", &doc.look.backdrop, ui::fx::BackdropNames(), ui::fx::kBackdropCount)) Commit("Fond du tableau blanc");
+        ImGui::SameLine(); if (ui::Button("Étalonnage", {0, 0}, showInspector)) showInspector = !showInspector;
+        ImGui::EndDisabled();
+        ui::EndCard();
+    }
+
+    // Inspecteur d'étalonnage façon logiciel de montage (roues remplacées par des curseurs compacts).
+    void Inspector(float w) {
+        Look& L = doc.look;
+        ui::BeginCard("insp", ImVec2(w, 0));
+        ui::TitleText("Étalonnage", ui::Pal().text);
+        ImGui::SameLine(ImGui::GetContentRegionMax().x - ui::S(44));
+        if (ui::Switch("##gr", &L.grade)) Commit(L.grade ? "Activer l'étalonnage" : "Désactiver l'étalonnage");
+        ImGui::BeginDisabled(!L.grade);
+        ui::SectionLabel("LOOK");
+        for (int i = 0; i < ui::fx::kPresetCount; ++i) {
+            ImVec2 bs((ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f, 0);
+            if (i % 2) ImGui::SameLine(); else bs.x = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+            if (ui::Button(ui::fx::PresetNames()[i], bs, L.preset == i)) { L.preset = i; Commit(std::string("Look : ") + ui::fx::PresetNames()[i]); }
+        }
+        bool any = false;
+        auto slider = [&](const char* label, float* v, float lo, float hi, const char* fmt, float def) {
+            ImGui::PushID(label);
+            ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(label);
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - ui::S(150));
+            ImGui::SetNextItemWidth(ui::S(150));
+            ImGui::SliderFloat("##v", v, lo, hi, fmt);
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) { *v = def; any = true; }
+            if (ImGui::IsItemDeactivatedAfterEdit()) any = true;
+            ImGui::PopID();
+        };
+        slider("Intensité", &L.mix, 0, 1, "%.2f", 1);
+        ImGui::Spacing(); ui::SectionLabel("CORRECTION PRIMAIRE");
+        slider("Exposition", &L.exposure, -2, 2, "%+.2f IL", 0);
+        slider("Contraste", &L.contrast, 0.5f, 1.6f, "%.2f", 1);
+        slider("Saturation", &L.saturation, 0, 2, "%.2f", 1);
+        slider("Température", &L.temperature, -1, 1, "%+.2f", 0);
+        slider("Teinte", &L.tint, -1, 1, "%+.2f", 0);
+        slider("Fondu", &L.fade, 0, 1, "%.2f", 0);
+        slider("Netteté", &L.sharpen, 0, 1, "%.2f", 0);
+        ImGui::Spacing(); ui::SectionLabel("OPTIQUE ET PELLICULE");
+        slider("Vignettage", &L.vignette, 0, 1, "%.2f", 0);
+        slider("Grain", &L.grain, 0, 1, "%.2f", 0);
+        slider("Aberration", &L.aberration, 0, 1, "%.2f", 0);
+        if (ui::Switch("Format cinéma 2,39:1", &L.letterbox)) any = true;
+        if (any) Commit("Réglage d'étalonnage");
+        ImGui::Spacing();
+        if (ui::Button("Réinitialiser", {-1, 0})) { int bgm = L.backdrop; L = Look{}; L.backdrop = bgm; L.grade = true; Commit("Réinitialiser l'étalonnage"); }
+        ImGui::EndDisabled();
+        ImGui::Spacing();
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextDisabled("Double-clic sur un curseur : valeur neutre. L'étalonnage s'applique au tableau blanc et au PDF.");
+        ImGui::PopTextWrapPos();
+        ui::EndCard();
     }
     static bool PdfDocument_Available() { return ui::PdfDocument::kAvailable; }
 
@@ -493,11 +699,11 @@ public:
         }
     }
     void CoursesTab() {
-        ImGui::BeginChild("clib", ImVec2(330, 0), true);
-        ImGui::TextDisabled("MODULES DE COURS");
+        { ImVec4 sb = ui::Pal().sidebar; ui::BeginCard("clib", ImVec2(ui::S(320), 0), 0, &sb); }
+        ui::SectionLabel("MODULES DE COURS");
         for (int i = 0; i < (int)modules.size(); ++i)
             if (ImGui::Selectable(modules[i].title.c_str(), supIdx < 0 && i == modIdx)) { modIdx = i; supIdx = -1; }
-        ImGui::Spacing(); ImGui::TextDisabled("SUPPORTS PDF (%zu)", supports.size()); ImGui::Separator();
+        ImGui::Spacing(); ui::SectionLabel(("SUPPORTS PDF (" + std::to_string(supports.size()) + ")").c_str()); ImGui::Separator();
         std::string last;
         for (int i = 0; i < (int)supports.size(); ++i) {
             if (supports[i].theme != last) { last = supports[i].theme; ImGui::Spacing(); ImGui::TextColored(ui::Accent(dark), "%s", last.c_str()); }
@@ -507,25 +713,25 @@ public:
             if (ImGui::Selectable((supports[i].title + "##s" + std::to_string(i)).c_str(), supIdx == i)) supIdx = i;
         }
         ImGui::EndChild();
-        ImGui::SameLine();
-        ImGui::BeginChild("creader", ImVec2(0, 0), true);
+        ImGui::SameLine(0, ui::S(10));
+        ui::BeginCard("creader", ImVec2(0, 0));
         if (supIdx >= 0) {
             const SupportDoc& d = supports[supIdx];
-            ImGui::TextColored(ui::Accent(dark), "%s", d.title.c_str()); ImGui::TextDisabled("%s", d.theme.c_str()); ImGui::Separator();
+            ui::TitleText(d.title.c_str(), ui::Pal().text); ImGui::TextDisabled("%s", d.theme.c_str()); ImGui::Separator();
             fs::path local = FindLocal(d);
             if (!local.empty()) {
                 ImGui::TextColored(ui::Ok(dark), "Fichier trouvé : %s", local.string().c_str());
-                if (ImGui::Button("Ouvrir dans le lecteur PDF (tableau blanc)")) OpenPdf(local.string());
+                if (ui::Button("Ouvrir dans le lecteur PDF (tableau blanc)")) OpenPdf(local.string());
             } else {
                 ImGui::TextWrapped("Ce support n'est pas encore sur cet ordinateur. Téléchargez-le depuis votre Drive et placez-le dans :");
                 ImGui::TextDisabled("%s", coursesDir.string().c_str());
                 ImGui::TextWrapped("sous le nom « %s ». Il s'ouvrira alors ici, avec surlignage et annotations.", d.file.c_str());
             }
-            if (ImGui::Button("Ouvrir dans Google Drive")) SDL_OpenURL(DriveUrl(d.driveId).c_str());
-            ImGui::SameLine(); if (ImGui::Button("Choisir un PDF sur le disque...")) PickPdf();
+            if (ui::Button("Ouvrir dans Google Drive")) SDL_OpenURL(DriveUrl(d.driveId).c_str());
+            ImGui::SameLine(); if (ui::Button("Choisir un PDF sur le disque...")) PickPdf();
         } else if (modIdx >= 0 && modIdx < (int)modules.size()) {
             CourseModule& m = modules[modIdx];
-            ImGui::TextColored(ui::Accent(dark), "%s", m.title.c_str()); ImGui::TextDisabled("Sources : %s", m.source.c_str()); ImGui::Separator();
+            ui::TitleText(m.title.c_str(), ui::Pal().text); ImGui::TextDisabled("Sources : %s", m.source.c_str()); ImGui::Separator();
             for (int si = 0; si < (int)m.sections.size(); ++si) {
                 Section& sec = m.sections[si];
                 ImGui::PushID(si);
@@ -540,7 +746,7 @@ public:
                     }
                     for (int k = 0; k < (int)sec.snippets.size(); ++k) {
                         ImGui::PushID(2000 + k);
-                        if (ImGui::Button((sec.snippets[k].label + "  >").c_str())) ApplySnippet(sec.snippets[k]);
+                        if (ui::Button((sec.snippets[k].label + "  >").c_str())) ApplySnippet(sec.snippets[k]);
                         ImGui::PopID();
                     }
                 }
@@ -588,6 +794,14 @@ public:
             Stroke a; a.layer = 1; a.r = 0.04f; a.g = 0.52f; a.b = 1; a.a = 1; a.width = 3;
             for (int i = 0; i <= 18; ++i) { float t = i / 18.0f; a.pts.push_back({620 + 200 * t, 300 - 60 * std::sin(t * 3.14159f), 1}); }
             s.strokes.push_back(a);
+            // éléments de montage : titre, bandeau, post-it, bulle, flèche
+            auto shape = [&](ShapeKind k, float x, float y, float w, float h, const char* t, const char* sub, float r, float g, float b, bool filled) {
+                Shape e; e.id = (int)s.shapes.size() + 1; e.kind = (int)k; e.x = x; e.y = y; e.w = w; e.h = h; e.text = t; e.sub = sub; e.r = r; e.g = g; e.b = b; e.filled = filled; s.shapes.push_back(e); };
+            shape(ShapeKind::Title, 560, 380, 0, 0, "Gestion du risque", "", 0.11f, 0.11f, 0.13f, true);
+            shape(ShapeKind::Note, 1040, 380, 175, 150, "VaR 99 % sur 10 jours : multiplier la VaR 1 jour par racine de 10.", "", 1, 0.84f, 0.04f, false);
+            shape(ShapeKind::Arrow, 1030, 450, -120, 40, "", "", 0.88f, 0.22f, 0.24f, true);
+            shape(ShapeKind::LowerThird, 60, 420, 360, 66, "Black-Scholes-Merton", "Prix d'un call européen sans dividende", 0.0f, 0.48f, 1.0f, true);
+            shape(ShapeKind::Bubble, 600, 470, 230, 64, "Le BFR se finance par le FRNG.", "", 0.16f, 0.66f, 0.27f, true);
         }
         s.edges = {{1, 2, "Détermine"}, {2, 3, "Consomme"}};
         s.python = "import random\nrandom.seed(42)\nrendements = [random.gauss(0.08, 0.20) for _ in range(5000)]\nx_vals = [random.gauss(0.07, 0.15) for _ in range(5000)]\nrendements = [0.015 + 1.25 * x + random.gauss(0, 0.09) for x in x_vals]\n";
@@ -600,20 +814,20 @@ public:
     // ---------------------------------------------------------------- onglet Tableur
     void SheetTab() {
         ImGui::Text("%s", Spreadsheet::RefName(sel_r, sel_c).c_str()); ImGui::SameLine();
-        ImGui::SetNextItemWidth(460);
+        ImGui::SetNextItemWidth(ui::S(460));
         if (focusFormula) { ImGui::SetKeyboardFocusHere(); focusFormula = false; }
         if (ImGui::InputText("##formula", &formula, ImGuiInputTextFlags_EnterReturnsTrue)) {
             sheet.SetCell(sel_r, sel_c, formula);
             Commit("Cellule " + Spreadsheet::RefName(sel_r, sel_c));
             if (sel_r + 1 < Spreadsheet::kRows) { ++sel_r; formula = sheet.Get(sel_r, sel_c).raw; }
         }
-        ImGui::SameLine(); if (ImGui::Button("Importer CSV/TSV...")) PickCsv();
-        ImGui::SameLine(); if (ImGui::Button("Importer dernier résultat SQL")) { sheet.ImportSql(sqlRes); Commit("SQL vers tableur"); }
-        ImGui::SameLine(); if (ImGui::Button("Vider")) { sheet.Clear(); sheet.Recalculate(); Commit("Vider le tableur"); }
+        ImGui::SameLine(); if (ui::Button("Importer CSV/TSV...")) PickCsv();
+        ImGui::SameLine(); if (ui::Button("Importer dernier résultat SQL")) { sheet.ImportSql(sqlRes); Commit("SQL vers tableur"); }
+        ImGui::SameLine(); if (ui::Button("Vider")) { sheet.Clear(); sheet.Recalculate(); Commit("Vider le tableur"); }
         if (ImGui::BeginTable("grid", Spreadsheet::kCols + 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoSavedSettings, ImVec2(0, 0))) {
             ImGui::TableSetupScrollFreeze(1, 1);
-            ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 38);
-            for (int c = 0; c < Spreadsheet::kCols; ++c) ImGui::TableSetupColumn(Spreadsheet::ColName(c).c_str(), ImGuiTableColumnFlags_WidthFixed, 110);
+            ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, ui::S(38));
+            for (int c = 0; c < Spreadsheet::kCols; ++c) ImGui::TableSetupColumn(Spreadsheet::ColName(c).c_str(), ImGuiTableColumnFlags_WidthFixed, ui::S(110));
             ImGui::TableHeadersRow();
             ImGuiListClipper clip; clip.Begin(Spreadsheet::kRows);
             while (clip.Step()) for (int r = clip.DisplayStart; r < clip.DisplayEnd; ++r) {
@@ -645,17 +859,17 @@ public:
 
         if (ImGui::BeginPopupModal("Modifications non enregistrées", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("« %s » contient des modifications non enregistrées.", DisplayName().c_str());
-            if (ImGui::Button("Enregistrer")) { SaveCmd(); ImGui::CloseCurrentPopup(); if (!modified) Run(pending); else pending = Pending::None; }
-            ImGui::SameLine(); if (ImGui::Button("Ne pas enregistrer")) { ImGui::CloseCurrentPopup(); Run(pending); }
-            ImGui::SameLine(); if (ImGui::Button("Annuler")) { pending = Pending::None; ImGui::CloseCurrentPopup(); }
+            if (ui::Button("Enregistrer", {0, 0}, true)) { SaveCmd(); ImGui::CloseCurrentPopup(); if (!modified) Run(pending); else pending = Pending::None; }
+            ImGui::SameLine(); if (ui::Button("Ne pas enregistrer")) { ImGui::CloseCurrentPopup(); Run(pending); }
+            ImGui::SameLine(); if (ui::Button("Annuler")) { pending = Pending::None; ImGui::CloseCurrentPopup(); }
             ImGui::EndPopup();
         }
         ImGui::SetNextWindowPos(c, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
         if (ImGui::BeginPopupModal("Récupération", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::TextWrapped("Une auto-sauvegarde plus récente a été trouvée (%s).\nVoulez-vous la restaurer ?", recoveryFile.filename().string().c_str());
-            if (ImGui::Button("Restaurer")) { LoadInto(recoveryFile, recoveryTarget); ImGui::CloseCurrentPopup(); }
+            if (ui::Button("Restaurer")) { LoadInto(recoveryFile, recoveryTarget); ImGui::CloseCurrentPopup(); }
             ImGui::SameLine();
-            if (ImGui::Button("Ignorer")) {
+            if (ui::Button("Ignorer")) {
                 if (!recoveryTarget.empty()) LoadInto(recoveryTarget, recoveryTarget);
                 else AutoSave::DiscardAll(sessionPath);
                 ImGui::CloseCurrentPopup();
@@ -665,9 +879,9 @@ public:
         ImGui::SetNextWindowPos(c, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
         if (ImGui::BeginPopupModal("Chemin du fichier", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::TextDisabled("Boîtes de dialogue natives indisponibles : saisissez le chemin.");
-            ImGui::SetNextItemWidth(520); ImGui::InputText("##pp", &pathBuf);
-            if (ImGui::Button("OK")) { std::string p = pathBuf; ImGui::CloseCurrentPopup(); Handle(pathPurpose, p); }
-            ImGui::SameLine(); if (ImGui::Button("Annuler")) ImGui::CloseCurrentPopup();
+            ImGui::SetNextItemWidth(ui::S(520)); ImGui::InputText("##pp", &pathBuf);
+            if (ui::Button("OK")) { std::string p = pathBuf; ImGui::CloseCurrentPopup(); Handle(pathPurpose, p); }
+            ImGui::SameLine(); if (ui::Button("Annuler")) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
         ImGui::SetNextWindowPos(c, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
@@ -677,11 +891,11 @@ public:
     void CsvModal() {
         ImGui::TextDisabled("%s", csvPath.c_str());
         const char* dl[] = {"Auto", "Virgule ,", "Point-virgule ;", "Tabulation", "Barre |"};
-        ImGui::SetNextItemWidth(170); if (ImGui::Combo("Séparateur", &csvDelim, dl, 5)) ReparseCsv();
+        ImGui::SetNextItemWidth(ui::S(170)); if (ImGui::Combo("Séparateur", &csvDelim, dl, 5)) ReparseCsv();
         if (!csv.ok()) { ImGui::TextColored(ui::Danger(dark), "%s", csv.error.c_str()); }
         else {
             ImGui::SameLine(); ImGui::Text("%zu colonnes, %zu lignes%s%s", csv.header.size(), csv.rows.size(), csv.hasHeader ? ", en-tête détecté" : ", sans en-tête", csv.decimalComma ? ", décimale virgule" : "");
-            if (ImGui::BeginTable("prev", (int)std::min<size_t>(csv.header.size(), 8), ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX, ImVec2(640, 190))) {
+            if (ImGui::BeginTable("prev", (int)std::min<size_t>(csv.header.size(), 8), ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX, ui::S(ImVec2(640, 190)))) {
                 int nc = (int)std::min<size_t>(csv.header.size(), 8);
                 for (int k = 0; k < nc; ++k) { const char* tn = csv.types[k] == ColType::Integer ? " [ent]" : csv.types[k] == ColType::Real ? " [réel]" : " [texte]"; ImGui::TableSetupColumn((csv.header[k] + tn).c_str()); }
                 ImGui::TableHeadersRow();
@@ -689,13 +903,13 @@ public:
                 ImGui::EndTable();
             }
             ImGui::RadioButton("Tableur", &csvDest, 0); ImGui::SameLine(); ImGui::RadioButton("Table SQLite3", &csvDest, 1); ImGui::SameLine(); ImGui::RadioButton("Les deux", &csvDest, 2);
-            if (csvDest != 0) { ImGui::SetNextItemWidth(240); ImGui::InputText("Nom de la table", &csvTable); }
+            if (csvDest != 0) { ImGui::SetNextItemWidth(ui::S(240)); ImGui::InputText("Nom de la table", &csvTable); }
             if (csvDest != 1) ImGui::TextDisabled("Le tableur sera remplacé (annulable avec Annuler).");
         }
         ImGui::BeginDisabled(!csv.ok());
-        if (ImGui::Button("Importer")) { DoCsvImport(); ImGui::CloseCurrentPopup(); }
+        if (ui::Button("Importer", {0, 0}, true)) { DoCsvImport(); ImGui::CloseCurrentPopup(); }
         ImGui::EndDisabled();
-        ImGui::SameLine(); if (ImGui::Button("Annuler")) ImGui::CloseCurrentPopup();
+        ImGui::SameLine(); if (ui::Button("Annuler")) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
 
@@ -711,30 +925,7 @@ public:
 } // namespace
 
 namespace {
-// Polices : DejaVu (Latin, grec, symboles mathématiques) cherchées à côté de l'exécutable ou dans assets/fonts.
-std::string FindFont(const char* name) {
-    std::vector<fs::path> dirs;
-    if (const char* b = SDL_GetBasePath()) { dirs.push_back(fs::path(b) / "assets" / "fonts"); dirs.push_back(fs::path(b) / ".." / "assets" / "fonts"); }
-    dirs.push_back(fs::path("assets") / "fonts");
-#ifdef FINANCELAB_ASSET_DIR
-    dirs.push_back(fs::path(FINANCELAB_ASSET_DIR) / "fonts");
-#endif
-    for (auto& d : dirs) { std::error_code ec; fs::path f = d / name; if (fs::exists(f, ec)) return f.string(); }
-    return "";
-}
-void LoadFonts(float scale) {
-    static const ImWchar ranges[] = {0x20, 0x17F, 0x2C6, 0x2DC, 0x370, 0x3FF, 0x2000, 0x206F, 0x2100, 0x214F, 0x2190, 0x21FF, 0x2200, 0x22FF, 0x25A0, 0x25FF, 0x27E8, 0x27E9, 0};
-    ImGuiIO& io = ImGui::GetIO();
-    auto load = [&](const char* n, float px) -> ImFont* { std::string p = FindFont(n); return p.empty() ? nullptr : io.Fonts->AddFontFromFileTTF(p.c_str(), px * scale, nullptr, ranges); };
-    ui::MathFonts& f = ui::Fonts();
-    f.ui = load("DejaVuSans.ttf", 15.0f);
-    if (!f.ui) { f.ui = io.Fonts->AddFontDefault(); }
-    io.FontDefault = f.ui;
-    f.roman = load("DejaVuSerif.ttf", 15.0f); f.italic = load("DejaVuSerif-Italic.ttf", 15.0f); f.mono = load("DejaVuSansMono.ttf", 14.0f);
-    if (!f.roman) f.roman = f.ui;
-    if (!f.italic) f.italic = f.roman;
-}
-struct Cli { bool demo = false, dark = false, preview = false; int tab = 0, frames = 8, module = -1, support = -1, exercise = -1, studyTab = -1; std::string shot, pdf; int pdfPage = 0; };
+struct Cli { bool demo = false, dark = false, preview = false, inspector = false; float scale = 0; int backdrop = -1, look = -1, element = -1; int tab = 0, frames = 8, module = -1, support = -1, exercise = -1, studyTab = -1; std::string shot, pdf; int pdfPage = 0; };
 }
 
 int main(int argc, char** argv) {
@@ -746,6 +937,9 @@ int main(int argc, char** argv) {
         else if (a == "--shot") cli.shot = next(); else if (a == "--pdf") cli.pdf = next(); else if (a == "--pdf-page") cli.pdfPage = std::atoi(next().c_str());
         else if (a == "--module") cli.module = std::atoi(next().c_str()); else if (a == "--exercise") cli.exercise = std::atoi(next().c_str());
         else if (a == "--study-tab") cli.studyTab = std::atoi(next().c_str());
+        else if (a == "--scale") cli.scale = (float)std::atof(next().c_str()); else if (a == "--backdrop") cli.backdrop = std::atoi(next().c_str());
+        else if (a == "--look") cli.look = std::atoi(next().c_str()); else if (a == "--inspector") cli.inspector = true;
+        else if (a == "--elements") cli.element = 1;
     }
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
 #ifdef __APPLE__
@@ -768,17 +962,35 @@ int main(int argc, char** argv) {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.IniFilename = nullptr;
-    float scale = SDL_GetWindowDisplayScale(win); if (scale <= 0) scale = 1;
-    ui::Apply(cli.dark);
-    ImGui::GetStyle().ScaleAllSizes(scale);
-    LoadFonts(scale);
+    // Échelle : SDL_GetWindowDisplayScale = densité de pixels (Retina) x échelle de contenu (Windows 150 %).
+    // Les coordonnées ImGui sont en points : on rastérise les polices à la densité réelle (texte net)
+    // et on dimensionne l'interface selon l'échelle de contenu x la préférence utilisateur.
+    auto rebuildUi = [&](float userScale, bool dark, bool backendReady) {
+        float density = SDL_GetWindowPixelDensity(win); if (density <= 0) density = 1;
+        float content = SDL_GetWindowDisplayScale(win) / density; if (content <= 0) content = 1;
+        ui::Scale() = content * userScale;
+        io.Fonts->Clear();
+        ui::LoadFonts(ui::Scale() * density);
+        io.FontGlobalScale = 1.0f / density;
+        ui::TypesetCache().clear();
+        ui::Apply(dark);
+        if (backendReady) { ImGui_ImplOpenGL3_DestroyFontsTexture(); ImGui_ImplOpenGL3_CreateFontsTexture(); }
+    };
     ImGui_ImplSDL3_InitForOpenGL(win, gl);
     ImGui_ImplOpenGL3_Init(glsl);
+    ui::fx::Init();
 
     {
         App app;
-        app.dark = cli.dark; app.tab = cli.tab; app.notesPreview = cli.preview; app.demoMargin = !cli.pdf.empty();
+        if (!cli.demo) app.LoadPrefs();          // captures de démonstration reproductibles
+        if (cli.scale > 0) app.uiScale = std::clamp(cli.scale, 0.8f, 1.75f);
+        if (cli.dark) app.dark = true;
+        rebuildUi(app.uiScale, app.dark, false); app.tab = cli.tab; app.notesPreview = cli.preview; app.demoMargin = !cli.pdf.empty();
         if (cli.demo) app.LoadDemo();
+        if (cli.backdrop >= 0) app.doc.look.backdrop = cli.backdrop;
+        if (cli.look >= 0) { app.doc.look.grade = true; app.doc.look.preset = cli.look; app.doc.look.vignette = 0.35f; app.doc.look.grain = 0.25f; }
+        if (cli.inspector) { app.showInspector = true; app.doc.look.grade = true; }
+        if (cli.element > 0) app.wb.tool = ui::Tool::Element;
         if (cli.module >= 0) { app.modIdx = cli.module; app.supIdx = -1; }
         if (cli.exercise >= 0) app.exIdx = std::clamp(cli.exercise, 0, (int)app.exercises.size() - 1);
         if (cli.studyTab >= 0) app.studyTab = cli.studyTab;
@@ -790,12 +1002,14 @@ int main(int argc, char** argv) {
                 ImGui_ImplSDL3_ProcessEvent(&ev);
                 if (ev.type == SDL_EVENT_QUIT) app.Guard(Pending::Quit);
                 if (ev.type == SDL_EVENT_DROP_FILE && ev.drop.data) app.OnDrop(ev.drop.data);
+                if (ev.type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED) app.uiDirty = true;   // déplacement vers un autre écran
             }
+            if (app.uiDirty) { rebuildUi(app.uiScale, app.dark, true); app.uiDirty = false; }
             ImGui_ImplOpenGL3_NewFrame(); ImGui_ImplSDL3_NewFrame(); ImGui::NewFrame();
             app.Frame(win);
             ImGui::Render();
             glViewport(0, 0, (int)io.DisplaySize.x * (int)io.DisplayFramebufferScale.x, (int)io.DisplaySize.y * (int)io.DisplayFramebufferScale.y);
-            glClearColor(0.95f, 0.95f, 0.96f, 1); glClear(GL_COLOR_BUFFER_BIT);
+            { ImVec4 c = ui::Pal().bgTop; glClearColor(c.x, c.y, c.z, 1); } glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             if (!cli.shot.empty() && ++frameNo == cli.frames) {              // capture d'écran PPM puis sortie
                 int W = (int)io.DisplaySize.x * (int)io.DisplayFramebufferScale.x, H = (int)io.DisplaySize.y * (int)io.DisplayFramebufferScale.y;
@@ -812,6 +1026,7 @@ int main(int argc, char** argv) {
         if (!cli.demo) AutoSave::DiscardAll(app.sessionPath);   // sortie propre : pas de récupération au prochain démarrage
     }
 
+    ui::fx::Shutdown();
     ImGui_ImplOpenGL3_Shutdown(); ImGui_ImplSDL3_Shutdown(); ImGui::DestroyContext();
     SDL_GL_DestroyContext(gl); SDL_DestroyWindow(win); SDL_Quit();
     return 0;

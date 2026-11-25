@@ -51,10 +51,14 @@ int main() {
       Stroke k; k.layer = 1; k.pts = {{1, 2, 0.5f}, {3, 4, 1}, {5, 6, 0.7f}}; p.strokes.push_back(k);
       p.nodes.push_back({1, 10, 20, 100, 50, "N", "sub", 1, 0, 0, 1}); p.edges.push_back({1, 1, "x"});
       p.cells = {{0, 0, "a"}, {1, 1, "=1+1"}};
+      Shape sh; sh.id = 3; sh.kind = (int)ShapeKind::LowerThird; sh.text = "Titre é"; sh.sub = "Sous-titre"; sh.w = -40; sh.filled = false; p.shapes.push_back(sh);
+      p.look.backdrop = 4; p.look.grade = true; p.look.preset = 2; p.look.vignette = 0.35f; p.look.exposure = -0.25f; p.look.letterbox = true;
       auto path = std::filesystem::temp_directory_path() / "cl_test.financelab";
       auto w = ProjectFile::Save(path, p); CHECK(w.ok);
       ProjectState q; auto l = ProjectFile::Load(path, q); CHECK(l.ok);
       CHECK(Fingerprint(p) == Fingerprint(q));
+      CHECK(q.shapes.size() == 1 && q.shapes[0].kind == (int)ShapeKind::LowerThird && q.shapes[0].sub == "Sous-titre");
+      CHECK(q.look.backdrop == 4 && q.look.grade && q.look.preset == 2 && q.look.letterbox && std::fabs(q.look.vignette - 0.35f) < 1e-6f);
       CHECK(!ProjectFile::Load("/etc/hostname", q).ok);
       std::filesystem::remove(path);
 

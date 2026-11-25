@@ -38,7 +38,7 @@ public:
         const char* kinds[] = {"Courbe", "Distribution & VaR", "Nuage & OLS"};
         if (Segmented("pk", kinds, 3, &kind)) Recompute();
         ImGui::SameLine(); const char* srcs[] = {"Python", "Tableur"}; Segmented("ps", srcs, 2, &source);
-        ImGui::SameLine(); if (ImGui::Button("Actualiser")) Sync(py, sh);
+        ImGui::SameLine(); if (cl::ui::Button("Actualiser")) Sync(py, sh);
         if (source == 0) {
             ImGui::TextDisabled("Variable Y"); ImGui::SameLine(); ImGui::SetNextItemWidth(120); ImGui::InputText("##vy", varY, sizeof varY);
             if (kind == 2) { ImGui::SameLine(); ImGui::TextDisabled("X"); ImGui::SameLine(); ImGui::SetNextItemWidth(120); ImGui::InputText("##vx", varX, sizeof varX); }

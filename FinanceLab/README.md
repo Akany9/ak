@@ -24,6 +24,24 @@ Linux : `sudo apt install libgl-dev libgtk-3-dev libx11-dev libxext-dev libxcurs
 - **Boîtes de dialogue natives**, glisser-déposer (`.financelab`, `.csv`, `.tsv`, `.pdf`), **auto-sauvegarde** avec récupération après plantage,
   **journal Annuler/Rétablir** cliquable (Ctrl/Cmd+Z), **import CSV/TSV** avec aperçu, exercices avec correcteur automatique.
 
+## Interface (style macOS, skeuomorphisme léger)
+- Barre d'outils unifiée, onglets en **contrôle segmenté** à pastille glissante, boutons bombés à reflet, **interrupteurs**,
+  cartes à ombre portée, palette du tableau blanc en **verre dépoli** (shader). Tout est dessiné à l'ImDrawList : aucune image, interface légère.
+- **Polices** : SF Pro (interface), SF Mono (code), **Valky** (titres) si présentes — voir `assets/fonts/LISEZMOI-POLICES.md` ; repli DejaVu.
+- **Échelle de l'interface** : menu **Affichage** (80 à 175 %, préréglages 90/100/110/125/150 %) ou **Ctrl + / Ctrl - / Ctrl 0**.
+  Polices rastérisées à la densité réelle de l'écran (Retina net), dimensions multipliées par l'échelle d'affichage du système × la préférence.
+  La barre d'outils se replie (marque masquée, import/export regroupés dans « Fichiers ») quand la place manque. Préférences mémorisées.
+
+## Outils issus du montage vidéo (tableau blanc)
+- **Éléments** (outil « Élément ») : rectangle, ellipse, flèche, **post-it** (ruban adhésif, coin corné), **titre** (Valky),
+  **bandeau** façon *lower third* télévisé, **bulle**. Clic = taille par défaut, glisser = dimensionner, poignée blanche = redimensionner,
+  Suppr = effacer ; texte, sous-titre, remplissage et couleur éditables dans la barre d'état.
+- **Fonds procéduraux** (shaders GLSL) : grille, papier, pointillés, millimétré, ardoise, dégradé, nuit — ils suivent le zoom et le déplacement.
+- **Étalonnage** (bouton « Étalonnage » → inspecteur) : 8 *looks* (cinéma sarcelle/orange, argentique N&B, sépia, bleach bypass,
+  vintage chaud, nuit américaine, pastel) + intensité, exposition, contraste, saturation, température, teinte, fondu, netteté,
+  vignettage, grain, aberration chromatique, bandes cinéma 2,39:1. S'applique au tableau blanc et au PDF ; double-clic = valeur neutre.
+- Éléments et réglages sont enregistrés dans le projet (format `.financelab` v4, les anciens projets s'ouvrent toujours) et passent par Annuler/Rétablir.
+
 Raccourcis : Ctrl+N / O / S / Maj+S, Ctrl+Z / Ctrl+Y. Tableau blanc : molette = zoom (défilement si un PDF est ouvert, Ctrl+molette pour zoomer), clic milieu ou Espace+glisser = déplacer.
 
 ## Supports de cours
@@ -32,7 +50,8 @@ Placez vos PDF dans le dossier `courses/` (à côté de l'exécutable, ou dans l
 `courses_demo/` contient un PDF d'exemple pour tester le lecteur.
 
 ## Captures d'écran automatiques
-`./build/FinanceLab --demo --tab 2 --pdf courses_demo/Exemple_Antiseche.pdf --shot capture.ppm` (options : `--dark`, `--module N`, `--exercise N`, `--study-tab 0|1`, `--preview`).
+`./build/FinanceLab --demo --tab 2 --pdf courses_demo/Exemple_Antiseche.pdf --shot capture.ppm` (options : `--dark`, `--module N`, `--exercise N`, `--study-tab 0|1`, `--preview`,
+`--scale 1.25`, `--backdrop 0..6`, `--look 0..7`, `--inspector`, `--elements`).
 Les captures de `docs/screenshots/` ont été générées ainsi.
 
 ## Limites connues

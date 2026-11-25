@@ -32,15 +32,29 @@ Linux : `sudo apt install libgl-dev libgtk-3-dev libx11-dev libxext-dev libxcurs
   Polices rastérisées à la densité réelle de l'écran (Retina net), dimensions multipliées par l'échelle d'affichage du système × la préférence.
   La barre d'outils se replie (marque masquée, import/export regroupés dans « Fichiers ») quand la place manque. Préférences mémorisées.
 
-## Outils issus du montage vidéo (tableau blanc)
-- **Éléments** (outil « Élément ») : rectangle, ellipse, flèche, **post-it** (ruban adhésif, coin corné), **titre** (Valky),
-  **bandeau** façon *lower third* télévisé, **bulle**. Clic = taille par défaut, glisser = dimensionner, poignée blanche = redimensionner,
-  Suppr = effacer ; texte, sous-titre, remplissage et couleur éditables dans la barre d'état.
+## Ruban façon PowerPoint / Word (tableau blanc)
+Le tableau blanc se pilote par un **ruban** à onglets et groupes libellés (repliable avec ⌃) :
+
+| Onglet | Groupes |
+|---|---|
+| **Accueil** | Outils (stylo, surligneur, gomme, bloc, lien, équation, élément), couleur de l'encre, épaisseur, opacité · Calques · Édition (dupliquer, supprimer, premier plan / arrière-plan, effacer les tracés) |
+| **Insertion** | Formes et cartons : rectangle, ellipse, triangle, losange, hexagone, étoile, flèche pleine, flèche, zone de texte, titre, bandeau (*lower third*), post-it, bulle · **Dispositions de texte** : titre et sous-titre, titre et liste à puces, deux colonnes, citation, chiffre clé, définition encadrée, comparaison · Contenu (équation, bloc, PDF) |
+| **Format de la forme** (contextuel, apparaît à la sélection) | **Styles rapides** (6 couleurs × intense / subtil) · **Remplissage** : aucun, uni, dégradé linéaire orienté, dégradé radial, 2 couleurs, **gamme de 16 dégradés**, angle, opacité · **Contour** : couleur, épaisseur, plein / tirets / pointillés, arrondi · **Effets de forme** : ombre, lueur, brillance, biseau, néon, verre dépoli (shader GLSL) · **Police** : famille (aperçu dans la police), taille, A+ / A−, gras, souligné, couleur, ombre, contour du texte · **Paragraphe** : alignement horizontal et vertical, puces (retrait suspendu), interligne |
+| **Création** | Arrière-plan du tableau (7 fonds procéduraux) · Étalonnage (inspecteur, look) · Apparence clair / sombre |
+| **Affichage** | Support PDF (page, visibilité, opacité) · Vue · Échelle de l'interface |
+
+- **Couleurs** façon Office : couleurs du thème avec 5 nuances (éclaircies 80/60/40 %, assombries 25/50 %), couleurs standard, couleurs récentes, « Autres couleurs… » (roue + transparence).
+- **Texte** : double-clic sur un élément (ou « Texte… ») pour la saisie multiligne ; une ligne commençant par « - » devient une puce.
+- **Polices** du texte : SF Pro, SF Pro Display, Valky, serif, serif italique, mono, **plus toute police `.ttf/.otf` déposée dans `assets/fonts/`** (10 au plus). Elles sont rastérisées en grand pour rester nettes au zoom.
+- Raccourcis : **Ctrl+D** dupliquer, **Suppr** effacer, poignée blanche = redimensionner.
+
+## Outils issus du montage vidéo
 - **Fonds procéduraux** (shaders GLSL) : grille, papier, pointillés, millimétré, ardoise, dégradé, nuit — ils suivent le zoom et le déplacement.
-- **Étalonnage** (bouton « Étalonnage » → inspecteur) : 8 *looks* (cinéma sarcelle/orange, argentique N&B, sépia, bleach bypass,
-  vintage chaud, nuit américaine, pastel) + intensité, exposition, contraste, saturation, température, teinte, fondu, netteté,
+- **Étalonnage** (inspecteur) : 8 *looks* (cinéma sarcelle/orange, argentique N&B, sépia, bleach bypass, vintage chaud,
+  nuit américaine, pastel) + intensité, exposition, contraste, saturation, température, teinte, fondu, netteté,
   vignettage, grain, aberration chromatique, bandes cinéma 2,39:1. S'applique au tableau blanc et au PDF ; double-clic = valeur neutre.
-- Éléments et réglages sont enregistrés dans le projet (format `.financelab` v4, les anciens projets s'ouvrent toujours) et passent par Annuler/Rétablir.
+- Éléments, styles et réglages sont enregistrés dans le projet (format `.financelab` v5 ; les projets v3/v4 s'ouvrent toujours,
+  leurs éléments reçoivent le style par défaut de leur type) et passent par Annuler/Rétablir.
 
 Raccourcis : Ctrl+N / O / S / Maj+S, Ctrl+Z / Ctrl+Y. Tableau blanc : molette = zoom (défilement si un PDF est ouvert, Ctrl+molette pour zoomer), clic milieu ou Espace+glisser = déplacer.
 
@@ -51,7 +65,7 @@ Placez vos PDF dans le dossier `courses/` (à côté de l'exécutable, ou dans l
 
 ## Captures d'écran automatiques
 `./build/FinanceLab --demo --tab 2 --pdf courses_demo/Exemple_Antiseche.pdf --shot capture.ppm` (options : `--dark`, `--module N`, `--exercise N`, `--study-tab 0|1`, `--preview`,
-`--scale 1.25`, `--backdrop 0..6`, `--look 0..7`, `--inspector`, `--elements`).
+`--scale 1.25`, `--backdrop 0..6`, `--look 0..7`, `--inspector`, `--elements`, `--ribbon 0..4`, `--select ID`).
 Les captures de `docs/screenshots/` ont été générées ainsi.
 
 ## Limites connues

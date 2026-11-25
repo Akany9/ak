@@ -31,7 +31,7 @@ inline uint64_t Fingerprint(const ProjectState& s) {
     for (auto& n : s.nodes) { mix(&n.id, sizeof n.id); mix(&n.x, 4 * sizeof(float)); str(n.title); str(n.subtitle); mix(&n.r, 4 * sizeof(float)); }
     for (auto& q : s.equations) { mix(&q.id, sizeof q.id); mix(&q.x, 2 * sizeof(float)); str(q.latex); mix(&q.r, 4 * sizeof(float)); }
     for (auto& h : s.shapes) { mix(&h.id, sizeof h.id); mix(&h.kind, sizeof h.kind); mix(&h.x, 4 * sizeof(float)); str(h.text); str(h.sub);
-                               mix(&h.r, 4 * sizeof(float)); mix(&h.filled, sizeof h.filled); mix(&h.stroke, sizeof h.stroke); }
+                               mix(&h.r, 4 * sizeof(float)); mix(&h.filled, sizeof h.filled); mix(&h.stroke, sizeof h.stroke); str(ShapeStyleToString(h)); }
     { const Look& l = s.look; mix(&l.backdrop, sizeof l.backdrop); mix(&l.grade, sizeof l.grade); mix(&l.preset, sizeof l.preset);
       mix(&l.mix, 11 * sizeof(float)); mix(&l.letterbox, sizeof l.letterbox); }
     str(s.dbDump); str(s.pdfPath); mix(&s.pdfOpacity, sizeof s.pdfOpacity);

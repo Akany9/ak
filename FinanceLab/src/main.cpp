@@ -22,6 +22,7 @@
 #include "ui/Fonts.hpp"
 #include "ui/MathRender.hpp"
 #include "ui/Plot.hpp"
+#include "ui/Ribbon.hpp"
 #include "ui/Theme.hpp"
 #include "ui/Whiteboard.hpp"
 
@@ -67,6 +68,9 @@ public:
     float uiScale = 1.0f;           // préférence utilisateur (0,8 à 1,75), multipliée par l'échelle de l'écran
     bool uiDirty = false;           // polices / style à reconstruire avant la prochaine image
     bool showInspector = false;     // inspecteur d'étalonnage du tableau blanc
+    int ribbonTab = 0;              // 0 Accueil, 1 Insertion, 2 Format de la forme (contextuel), 3 Création, 4 Affichage
+    bool ribbonCollapsed = false;
+    int ribbonSeen = -1;            // dernier élément sélectionné vu par le ruban
     fs::path prefsPath;
     std::vector<CourseModule> modules = BuiltinModules();
     std::vector<SupportDoc> supports = BuiltinSupports();
@@ -561,7 +565,7 @@ public:
 
     // ---------------------------------------------------------------- onglet Whiteboard (barre d'outils + inspecteur)
     void BoardTab() {
-        WbToolbar();
+        Ribbon();
         ImGui::Spacing();
         float iw = showInspector ? ui::S(268) : 0.0f;
         auto o = wb.Render(doc, ImVec2(showInspector ? -iw - ui::S(10) : 0, 0), dark);
@@ -569,58 +573,382 @@ public:
         if (showInspector) { ImGui::SameLine(0, ui::S(10)); Inspector(iw); }
     }
 
-    void WbToolbar() {
-        float rowH = ImGui::GetFrameHeight();
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ui::S(ImVec2(10, 8)));
-        ui::BeginCard("wbtb", ImVec2(0, rowH * 2 + ui::S(8) * 2 + ImGui::GetStyle().ItemSpacing.y), ImGuiWindowFlags_NoScrollbar);
+    // ================================================================ ruban (PowerPoint / Word)
+    void Ribbon() {
+        namespace rb = ui::ribbon;
+        Shape* sel = wb.Selected(doc);
+        int selId = sel ? sel->id : -1;
+        if (selId != ribbonSeen) { if (selId > 0) ribbonTab = 2; else if (ribbonTab == 2) ribbonTab = 0; ribbonSeen = selId; }
+        if (!sel && ribbonTab == 2) ribbonTab = 0;
+        float tabsH = ImGui::GetFontSize() + ui::S(10);
+        float bodyH = rb::ContentHeight() + ImGui::GetFontSize() * 0.84f + ui::S(8) + ImGui::GetStyle().ScrollbarSize;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ui::S(ImVec2(10, 6)));
+        ui::BeginCard("ribbon", ImVec2(0, tabsH + (ribbonCollapsed ? 0 : bodyH + ui::S(6)) + ui::S(12)), ImGuiWindowFlags_NoScrollbar);
         ImGui::PopStyleVar();
+        // onglets
+        const char* all[] = {"Accueil", "Insertion", "Format de la forme", "Création", "Affichage"};
+        std::vector<const char*> names; std::vector<int> map;
+        for (int i = 0; i < 5; ++i) if (i != 2 || sel) { names.push_back(all[i]); map.push_back(i); }
+        int cur = 0; for (int i = 0; i < (int)map.size(); ++i) if (map[i] == ribbonTab) cur = i;
+        int ctx = -1; for (int i = 0; i < (int)map.size(); ++i) if (map[i] == 2) ctx = i;
+        if (rb::Tabs(names.data(), (int)names.size(), &cur, ctx)) { ribbonTab = map[cur]; ribbonCollapsed = false; }
+        ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::GetFrameHeight());
+        if (rb::IconButton("##collapse", false, [&](ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 c) {
+                float mx = (a.x + b.x) * 0.5f, my = (a.y + b.y) * 0.5f, k = (b.x - a.x) * 0.3f;
+                if (ribbonCollapsed) { dl->AddLine({mx - k, my - k * 0.5f}, {mx, my + k * 0.5f}, c, ui::S(1.6f)); dl->AddLine({mx, my + k * 0.5f}, {mx + k, my - k * 0.5f}, c, ui::S(1.6f)); }
+                else { dl->AddLine({mx - k, my + k * 0.5f}, {mx, my - k * 0.5f}, c, ui::S(1.6f)); dl->AddLine({mx, my - k * 0.5f}, {mx + k, my + k * 0.5f}, c, ui::S(1.6f)); }
+            }, ribbonCollapsed ? "Afficher le ruban" : "Réduire le ruban")) ribbonCollapsed = !ribbonCollapsed;
+        if (!ribbonCollapsed) {
+            ImGui::Separator();
+            ImGui::BeginChild("rbody", ImVec2(0, bodyH), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoBackground);
+            ImGui::SetCursorPos({ImGui::GetCursorPosX(), ImGui::GetCursorPosY() + ui::S(2)});
+            switch (ribbonTab) {
+                case 0: RibbonHome(sel); break;
+                case 1: RibbonInsert(); break;
+                case 2: if (sel) RibbonFormat(*sel); break;
+                case 3: RibbonDesign(); break;
+                default: RibbonView(); break;
+            }
+            ImGui::EndChild();
+        }
+        ui::EndCard();
+    }
+
+    void RibbonHome(Shape* sel) {
+        namespace rb = ui::ribbon;
+        rb::BeginGroup("Outils");
         const char* tools[] = {"Stylo", "Surligneur", "Gomme", "Bloc", "Lien", "Équation", "Élément"};
         int t = (int)wb.tool; if (ui::Segmented("wbtools", tools, 7, &t)) { wb.tool = (ui::Tool)t; wb.Deselect(); }
-        if (wb.tool == ui::Tool::Element) {
-            ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(120));
-            ImGui::Combo("##kind", &wb.shapeKind, ui::ShapeNames(), (int)ShapeKind::Count);
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) ImGui::SetTooltip("Cartons de montage : cliquez pour poser, glissez pour dimensionner.\nLa poignée blanche redimensionne, Suppr efface.");
-        }
-        ImGui::SameLine(); ImGui::ColorEdit3("##ink", wb.color, ImGuiColorEditFlags_NoInputs);
-        ImGui::SameLine(0, ui::S(14)); ImGui::SetNextItemWidth(ui::S(170));
-        std::vector<std::string> names; for (auto& l : doc.layers) names.push_back(l.name);
+        float ink[4] = {wb.color[0], wb.color[1], wb.color[2], 1};
+        if (rb::ColorButton("ink", ink, "✎", "Couleur de l'encre et des nouveaux éléments")) { wb.color[0] = ink[0]; wb.color[1] = ink[1]; wb.color[2] = ink[2]; }
+        ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(130)); ImGui::SliderFloat("##brush", &wb.brush, 1, 30, "épaisseur %.1f");
+        ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(110)); ImGui::SliderFloat("##opa", &wb.opacity, 0.1f, 1, "opacité %.2f");
+        rb::EndGroup();
+
+        rb::BeginGroup("Calques");
         wb.activeLayer = std::clamp(wb.activeLayer, 0, (int)doc.layers.size() - 1);
+        ImGui::SetNextItemWidth(ui::S(170));
         if (ImGui::BeginCombo("##layer", doc.layers[wb.activeLayer].name.c_str())) {
-            for (int i = 0; i < (int)names.size(); ++i) if (ImGui::Selectable(names[i].c_str(), i == wb.activeLayer)) wb.activeLayer = i;
+            for (int i = 0; i < (int)doc.layers.size(); ++i) if (ImGui::Selectable(doc.layers[i].name.c_str(), i == wb.activeLayer)) wb.activeLayer = i;
             ImGui::EndCombo();
         }
         ImGui::SameLine(); if (ui::Switch("Visible", &doc.layers[wb.activeLayer].visible)) Commit("Visibilité du calque");
-        ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(120));
-        ImGui::SliderFloat("##lop", &doc.layers[wb.activeLayer].opacity, 0.1f, 1.0f, "opacité %.2f");
+        ImGui::SetNextItemWidth(ui::S(120)); ImGui::SliderFloat("##lop", &doc.layers[wb.activeLayer].opacity, 0.1f, 1.0f, "opacité %.2f");
         if (ImGui::IsItemDeactivatedAfterEdit()) Commit("Opacité du calque");
         ImGui::SameLine(); if (ui::Button("+ Calque")) { doc.layers.push_back({"Calque " + std::to_string(doc.layers.size() + 1), true, 1.0f}); wb.activeLayer = (int)doc.layers.size() - 1; Commit("Nouveau calque"); }
+        rb::EndGroup();
+
+        rb::BeginGroup("Édition");
+        ImGui::BeginDisabled(!sel);
+        if (ui::Button("Dupliquer")) { if (wb.Duplicate(doc)) Commit("Dupliquer un élément"); }
+        ImGui::SameLine(); if (ui::Button("Supprimer")) { int id = sel->id; doc.shapes.erase(std::remove_if(doc.shapes.begin(), doc.shapes.end(), [&](const Shape& h) { return h.id == id; }), doc.shapes.end()); wb.Deselect(); Commit("Supprimer un élément"); }
+        if (ui::Button("Premier plan")) { if (wb.Reorder(doc, +1)) Commit("Premier plan"); }
+        ImGui::SameLine(); if (ui::Button("Arrière-plan")) { if (wb.Reorder(doc, -1)) Commit("Arrière-plan"); }
+        ImGui::EndDisabled();
         ImGui::SameLine(); if (ui::Button("Effacer les tracés")) { doc.strokes.clear(); Commit("Effacer les tracés"); }
-        // ligne 2 : support de cours PDF · fond · étalonnage
-        if (ui::Button("Ouvrir un PDF de cours…")) PickPdf();
+        rb::EndGroup();
+    }
+
+    void RibbonInsert() {
+        namespace rb = ui::ribbon;
+        rb::BeginGroup("Formes et cartons");
+        const int row1[] = {(int)ShapeKind::Rect, (int)ShapeKind::Ellipse, (int)ShapeKind::Triangle, (int)ShapeKind::Diamond, (int)ShapeKind::Hexagon, (int)ShapeKind::Star, (int)ShapeKind::BlockArrow};
+        const int row2[] = {(int)ShapeKind::Arrow, (int)ShapeKind::TextBox, (int)ShapeKind::Title, (int)ShapeKind::LowerThird, (int)ShapeKind::Note, (int)ShapeKind::Bubble};
+        auto tile = [&](int k) {
+            if (rb::ShapeTile(k, wb.tool == ui::Tool::Element && wb.shapeKind == k)) {
+                wb.tool = ui::Tool::Element; wb.shapeKind = k; wb.Deselect();
+                status = std::string("Cliquez (ou glissez) sur le tableau pour poser : ") + ShapeKindName(k);
+            }
+        };
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {ui::S(2), ImGui::GetStyle().ItemSpacing.y});
+        for (int i = 0; i < 7; ++i) { if (i) ImGui::SameLine(); tile(row1[i]); }
+        for (int i = 0; i < 6; ++i) { if (i) ImGui::SameLine(); tile(row2[i]); }
+        ImGui::PopStyleVar();
+        rb::EndGroup();
+
+        rb::BeginGroup("Dispositions de texte");
+        float th = ui::ribbon::ContentHeight(), tw = th * 1.25f;
+        const char* lnames[] = {"Titre et sous-titre", "Titre et liste à puces", "Deux colonnes", "Citation", "Chiffre clé", "Définition encadrée", "Comparaison"};
+        for (int i = 0; i < 7; ++i) {
+            if (i) ImGui::SameLine(0, ui::S(4));
+            ImGui::PushID(i);
+            if (rb::Tile("##lay", {tw, th}, false, [&](ImDrawList* dl, ImVec2 a, ImVec2 b) { DrawLayoutPreview(dl, i, a, b); }, lnames[i])) InsertLayout(i);
+            ImGui::PopID();
+        }
+        rb::EndGroup();
+
+        rb::BeginGroup("Contenu");
+        if (ui::Button("Équation")) { wb.tool = ui::Tool::Equation; status = "Cliquez sur le tableau pour poser une équation LaTeX"; }
+        ImGui::SameLine(); if (ui::Button("Bloc de schéma")) wb.tool = ui::Tool::Block;
+        if (ui::Button("PDF de cours…")) PickPdf();
+        rb::EndGroup();
+    }
+
+    // Styles rapides : rangée 1 « intense » (dégradé, texte blanc, ombre), rangée 2 « subtil » (teinte claire, contour).
+    static void QuickStyle(Shape& h, int row, int i) {
+        const int idx[6] = {4, 5, 3, 7, 8, 9};
+        ImVec4 c = ui::ribbon::ThemeColors()[idx[i]];
+        if (row == 0) {
+            ImVec4 d = ui::ribbon::Shade(c, 4);
+            h.r = c.x; h.g = c.y; h.b = c.z; h.a = 1; h.c2[0] = d.x; h.c2[1] = d.y; h.c2[2] = d.z; h.c2[3] = 1;
+            h.fill = (int)FillType::Linear; h.angle = 90; h.fillAlpha = 1; h.outline = false; h.shadow = true;
+            h.tc[0] = h.tc[1] = h.tc[2] = 1; h.tc[3] = 1;
+        } else {
+            ImVec4 l = ui::ribbon::Shade(c, 1), d = ui::ribbon::Shade(c, 5);
+            h.r = l.x; h.g = l.y; h.b = l.z; h.a = 1; h.fill = (int)FillType::Solid; h.fillAlpha = 1; h.outline = true; h.shadow = false;
+            h.lc[0] = c.x; h.lc[1] = c.y; h.lc[2] = c.z; h.lc[3] = 1; h.stroke = std::max(h.stroke, 1.5f);
+            h.tc[0] = d.x; h.tc[1] = d.y; h.tc[2] = d.z; h.tc[3] = 1;
+        }
+        if (h.kind == (int)ShapeKind::LowerThird) { h.lc[0] = c.x; h.lc[1] = c.y; h.lc[2] = c.z; }
+    }
+
+    void RibbonFormat(Shape& h) {
+        namespace rb = ui::ribbon;
+        std::string label;                  // libellé du journal si une modification ponctuelle a eu lieu
+        auto deact = [&](const char* l) { if (ImGui::IsItemDeactivatedAfterEdit()) label = l; };
+        bool line = h.kind == (int)ShapeKind::Arrow;
+
+        if (!line) {
+            rb::BeginGroup("Styles rapides");
+            float s = ImGui::GetFrameHeight();
+            for (int row = 0; row < 2; ++row) for (int i = 0; i < 6; ++i) {
+                if (i) ImGui::SameLine(0, ui::S(3));
+                ImGui::PushID(row * 6 + i);
+                if (rb::Tile("##qs", {s * 1.2f, s}, false, [&](ImDrawList* dl, ImVec2 a, ImVec2 b) {
+                        Shape q; q.kind = (int)ShapeKind::Rect; q.radius = 4; q.stroke = 1.2f; QuickStyle(q, row, i); q.shadow = false;
+                        q.text = "Abc"; q.fontSize = 11; q.alignH = 1; q.alignV = 1;
+                        ui::shapes::Draw(dl, q, {a.x + ui::S(3), a.y + ui::S(3)}, {b.x - ui::S(3), b.y - ui::S(3)}, ui::Scale(), false);
+                    }, row == 0 ? "Effet intense" : "Effet subtil")) { QuickStyle(h, row, i); label = "Style rapide"; }
+                ImGui::PopID();
+            }
+            rb::EndGroup();
+
+            rb::BeginGroup("Remplissage");
+            ImGui::PushID("fill");
+            const char* ft[] = {"Aucun", "Uni", "Linéaire", "Radial"};
+            if (ui::Segmented("ft", ft, 4, &h.fill)) label = "Type de remplissage";
+            float c1[4] = {h.r, h.g, h.b, h.a};
+            if (rb::ColorButton("c1", c1, "■", "Couleur de remplissage")) { h.r = c1[0]; h.g = c1[1]; h.b = c1[2]; h.a = c1[3]; if (h.fill == (int)FillType::None) h.fill = (int)FillType::Solid; label = "Couleur de remplissage"; }
+            if (h.fill >= (int)FillType::Linear) {
+                ImGui::SameLine(0, ui::S(2)); if (rb::ColorButton("c2", h.c2, "◧", "Seconde couleur du dégradé")) label = "Couleur du dégradé";
+            }
+            ImGui::SameLine(); if (rb::GradientGallery(h)) label = "Dégradé";
+            if (h.fill == (int)FillType::Linear) { ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(58)); ImGui::DragFloat("##ang", &h.angle, 1, 0, 360, "%.0f°"); deact("Angle du dégradé"); }
+            ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(76)); ImGui::SliderFloat("##fa", &h.fillAlpha, 0, 1, "opac. %.2f"); deact("Opacité du remplissage");
+            ImGui::PopID();
+            rb::EndGroup();
+        }
+
+        rb::BeginGroup("Contour");
+        ImGui::PushID("ol");
+        if (!line) { if (ui::Switch("##on", &h.outline)) label = "Contour"; ImGui::SameLine(); }
+        if (rb::ColorButton("lc", h.lc, "✎", "Couleur du contour")) { h.outline = true; label = "Couleur du contour"; }
+        ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(70)); ImGui::DragFloat("##w", &h.stroke, 0.1f, 0.5f, 20, "%.1f pt"); deact("Épaisseur du contour");
+        const char* dashes[] = {"——", "– –", "···"};
+        if (ui::Segmented("dash", dashes, 3, &h.dash)) label = "Style de trait";
+        if (ui::shapes::IsBoxy(h.kind)) { ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(78)); ImGui::DragFloat("##rad", &h.radius, 0.3f, 0, 60, "arrondi %.0f"); deact("Arrondi des angles"); }
+        ImGui::PopID();
+        rb::EndGroup();
+
+        rb::BeginGroup("Effets de forme");
+        ImGui::PushID("fx");
+        auto fxb = [&](const char* n, bool* v, const char* tip) {
+            if (ui::Button(n, {ui::S(64), 0}, *v)) { *v = !*v; label = std::string("Effet : ") + n; }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) ImGui::SetTooltip("%s", tip);
+        };
+        fxb("Ombre", &h.shadow, "Ombre portée douce"); ImGui::SameLine(0, ui::S(3));
+        fxb("Lueur", &h.glow, "Halo lumineux autour de la forme"); ImGui::SameLine(0, ui::S(3));
+        fxb("Brillance", &h.gloss, "Reflet supérieur façon verre bombé");
+        fxb("Biseau", &h.bevel, "Arêtes éclairées depuis le haut à gauche"); ImGui::SameLine(0, ui::S(3));
+        fxb("Néon", &h.neon, "Contour lumineux à cœur blanc"); ImGui::SameLine(0, ui::S(3));
+        ImGui::BeginDisabled(!ui::fx::Available() || !ui::shapes::IsBoxy(h.kind));
+        fxb("Verre", &h.glass, "Verre dépoli (shader GLSL) : floute ce qui est dessous");
+        ImGui::EndDisabled();
+        ImGui::PopID();
+        rb::EndGroup();
+
+        if (!line) {
+            rb::BeginGroup("Police");
+            ImGui::PushID("font");
+            if (rb::FontCombo("##font", h.font, ui::S(150))) label = "Police";
+            ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(54)); ImGui::DragFloat("##fs", &h.fontSize, 0.2f, 6, 160, "%.0f"); deact("Taille du texte");
+            ImGui::SameLine(0, ui::S(2)); if (ui::ToolButton("A+")) { h.fontSize = std::min(160.0f, std::round(h.fontSize * 1.15f)); label = "Agrandir le texte"; }
+            ImGui::SameLine(0, ui::S(2)); if (ui::ToolButton("A-")) { h.fontSize = std::max(6.0f, std::round(h.fontSize / 1.15f)); label = "Réduire le texte"; }
+            if (rb::TextToggle("G", &h.bold, "Gras")) label = "Gras";
+            ImGui::SameLine(0, ui::S(2)); if (rb::TextToggle("S", &h.underline, "Souligné", nullptr, true)) label = "Souligné";
+            ImGui::SameLine(0, ui::S(2)); if (rb::ColorButton("tc", h.tc, "A", "Couleur du texte")) label = "Couleur du texte";
+            ImGui::SameLine(0, ui::S(2)); if (rb::TextToggle("O##ts", &h.textShadow, "Ombre du texte")) label = "Ombre du texte";
+            ImGui::SameLine(0, ui::S(2)); if (rb::TextToggle("◌##to", &h.textOutline, "Contour du texte (halo)")) label = "Contour du texte";
+            ImGui::SameLine(0, ui::S(6)); if (ui::ToolButton("Texte…")) wb.EditText(h.id);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) ImGui::SetTooltip("Modifier le texte (ou double-clic sur l'élément)");
+            ImGui::PopID();
+            rb::EndGroup();
+
+            rb::BeginGroup("Paragraphe");
+            ImGui::PushID("para");
+            const char* ah[] = {"Aligner à gauche", "Centrer", "Aligner à droite"};
+            const char* av[] = {"Haut", "Milieu", "Bas"};
+            for (int i = 0; i < 3; ++i) {
+                if (i) ImGui::SameLine(0, ui::S(2));
+                ImGui::PushID(i);
+                if (rb::IconButton("##ah", h.alignH == i, [&](ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 c) { rb::DrawAlignH(dl, a, b, c, i); }, ah[i])) { h.alignH = i; label = "Alignement"; }
+                ImGui::PopID();
+            }
+            ImGui::SameLine(0, ui::S(8));
+            if (rb::IconButton("##bul", h.bullets, [&](ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 c) { rb::DrawBullets(dl, a, b, c); }, "Puces")) { h.bullets = !h.bullets; label = "Puces"; }
+            for (int i = 0; i < 3; ++i) {
+                if (i) ImGui::SameLine(0, ui::S(2));
+                ImGui::PushID(10 + i);
+                if (rb::IconButton("##av", h.alignV == i, [&](ImDrawList* dl, ImVec2 a, ImVec2 b, ImU32 c) { rb::DrawAlignV(dl, a, b, c, i); }, av[i])) { h.alignV = i; label = "Alignement vertical"; }
+                ImGui::PopID();
+            }
+            ImGui::SameLine(0, ui::S(8)); ImGui::SetNextItemWidth(ui::S(72)); ImGui::DragFloat("##ls", &h.lineSpacing, 0.01f, 0.8f, 3, "↕ %.2f"); deact("Interligne");
+            ImGui::PopID();
+            rb::EndGroup();
+
+        }
+        if (!label.empty()) Commit(label);
+    }
+
+    void RibbonDesign() {
+        namespace rb = ui::ribbon;
+        rb::BeginGroup("Arrière-plan du tableau");
+        float th = rb::ContentHeight(), tw = th * 1.1f;
+        ImGui::BeginDisabled(!ui::fx::Available());
+        static const ImVec4 a[7][2] = {{ui::Rgb(250, 250, 252), ui::Rgb(220, 224, 232)}, {ui::Rgb(251, 248, 240), ui::Rgb(236, 230, 214)}, {ui::Rgb(252, 252, 253), ui::Rgb(190, 192, 200)},
+                                       {ui::Rgb(251, 253, 252), ui::Rgb(150, 205, 215)}, {ui::Rgb(41, 56, 51), ui::Rgb(60, 78, 70)}, {ui::Rgb(250, 214, 196), ui::Rgb(196, 220, 255)}, {ui::Rgb(10, 13, 28), ui::Rgb(40, 30, 70)}};
+        for (int i = 0; i < ui::fx::kBackdropCount; ++i) {
+            if (i) ImGui::SameLine(0, ui::S(4));
+            ImGui::PushID(i);
+            if (rb::Tile("##bg", {tw, th}, doc.look.backdrop == i, [&](ImDrawList* dl, ImVec2 p, ImVec2 q) {
+                    ImVec2 m(p.x + ui::S(4), p.y + ui::S(4)), n(q.x - ui::S(4), q.y - ui::S(16));
+                    dl->AddRectFilledMultiColor(m, n, ImGui::ColorConvertFloat4ToU32(a[i][0]), ImGui::ColorConvertFloat4ToU32(a[i][1]), ImGui::ColorConvertFloat4ToU32(a[i][1]), ImGui::ColorConvertFloat4ToU32(a[i][0]));
+                    if (i == 0) for (float x = m.x + ui::S(6); x < n.x; x += ui::S(6)) dl->AddLine({x, m.y}, {x, n.y}, IM_COL32(200, 205, 215, 255));
+                    if (i == 2) for (float y = m.y + ui::S(5); y < n.y; y += ui::S(6)) for (float x = m.x + ui::S(5); x < n.x; x += ui::S(6)) dl->AddCircleFilled({x, y}, 0.9f, IM_COL32(150, 150, 160, 255));
+                    dl->AddRect(m, n, IM_COL32(0, 0, 0, 30));
+                    ImGui::SetWindowFontScale(0.8f);
+                    const char* nm = ui::fx::BackdropNames()[i]; ImVec2 ts = ImGui::CalcTextSize(nm);
+                    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), {(p.x + q.x - ts.x) * 0.5f, q.y - ui::S(14)}, ui::U32(ui::Pal().text), nm);
+                    ImGui::SetWindowFontScale(1.0f);
+                }, ui::fx::BackdropNames()[i])) { doc.look.backdrop = i; Commit("Fond du tableau blanc"); }
+            ImGui::PopID();
+        }
+        ImGui::EndDisabled();
+        rb::EndGroup();
+
+        rb::BeginGroup("Étalonnage");
+        ImGui::BeginDisabled(!ui::fx::Available());
+        if (ui::Button("Inspecteur", {0, 0}, showInspector)) showInspector = !showInspector;
+        ImGui::SameLine(); if (ui::Switch("Actif", &doc.look.grade)) Commit(doc.look.grade ? "Activer l'étalonnage" : "Désactiver l'étalonnage");
+        ImGui::SetNextItemWidth(ui::S(170));
+        if (ImGui::Combo("##look", &doc.look.preset, ui::fx::PresetNames(), ui::fx::kPresetCount)) { doc.look.grade = true; Commit(std::string("Look : ") + ui::fx::PresetNames()[doc.look.preset]); }
+        ImGui::EndDisabled();
+        rb::EndGroup();
+
+        rb::BeginGroup("Apparence");
+        int mode = dark ? 1 : 0; const char* modes[] = {"Clair", "Sombre"};
+        if (ui::Segmented("theme", modes, 2, &mode)) SetDark(mode == 1);
+        rb::EndGroup();
+    }
+
+    void RibbonView() {
+        namespace rb = ui::ribbon;
+        rb::BeginGroup("Support de cours PDF");
+        if (ui::Button("Ouvrir un PDF…")) PickPdf();
         if (wb.pdf.Loaded()) {
-            ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("%s", wb.pdf.Path().filename().string().c_str());
-            ImGui::SameLine(); ImGui::Text("Page"); ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(88));
+            ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::Text("Page"); ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(88));
             int pg = wb.CurrentPdfPage() + 1;
             if (ImGui::InputInt("##pg", &pg, 1, 5)) wb.JumpToPdfPage(std::clamp(pg, 1, wb.pdf.PageCount()) - 1);
             ImGui::SameLine(); ImGui::Text("/ %d", wb.pdf.PageCount());
-            ImGui::SameLine(); ui::Switch("PDF", &wb.pdfVisible);
+            ui::Switch("Afficher", &wb.pdfVisible);
             ImGui::SameLine(); ImGui::SetNextItemWidth(ui::S(130)); ImGui::SliderFloat("##po", &wb.pdfOpacity, 0.15f, 1.0f, "opacité %.2f");
             if (ImGui::IsItemDeactivatedAfterEdit()) Touch();
             ImGui::SameLine(); if (ui::Button("Retirer")) { wb.ClosePdf(); doc.pdfPath.clear(); Commit("Retirer le PDF"); }
-        } else {
-            ImGui::SameLine(); ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled(PdfDocument_Available() ? "Surlignages et notes restent ancrés au texte du cours." : "Lecteur PDF non compilé dans cette version.");
+        } else ImGui::TextDisabled(PdfDocument_Available() ? "Surlignages et notes restent ancrés au texte du cours." : "Lecteur PDF non compilé dans cette version.");
+        rb::EndGroup();
+
+        rb::BeginGroup("Vue");
+        if (ui::Button("Réinitialiser la vue")) wb.ResetView();
+        if (ui::Button("Tout désélectionner")) wb.Deselect();
+        rb::EndGroup();
+
+        rb::BeginGroup("Échelle de l'interface");
+        if (ui::Button("−")) SetScale(uiScale - 0.05f);
+        ImGui::SameLine(); ImGui::AlignTextToFramePadding(); ImGui::Text("%d %%", (int)std::lround(uiScale * 100));
+        ImGui::SameLine(); if (ui::Button("+")) SetScale(uiScale + 0.05f);
+        if (ui::Button("100 %", {0, 0}, std::fabs(uiScale - 1) < 1e-3f)) SetScale(1.0f);
+        rb::EndGroup();
+    }
+
+    // ---------------------------------------------------------------- dispositions de texte
+    void DrawLayoutPreview(ImDrawList* dl, int i, ImVec2 a, ImVec2 b) {
+        ImVec2 m(a.x + ui::S(5), a.y + ui::S(5)), n(b.x - ui::S(5), b.y - ui::S(5));
+        dl->AddRectFilled(m, n, ui::U32(dark ? ui::Rgb(58, 58, 62) : ui::Rgb(255, 255, 255)), ui::S(2));
+        dl->AddRect(m, n, IM_COL32(0, 0, 0, 40), ui::S(2));
+        float W = n.x - m.x, H = n.y - m.y;
+        ImU32 t = ui::U32(ui::Pal().text), g = ui::U32(ui::WithAlpha(ui::Pal().textDim, 0.7f)), acc = ui::U32(ui::Pal().accent);
+        auto bar = [&](float x, float y, float w, float h, ImU32 c) { dl->AddRectFilled({m.x + W * x, m.y + H * y}, {m.x + W * (x + w), m.y + H * (y + h)}, c, 1); };
+        switch (i) {
+            case 0: bar(0.15f, 0.32f, 0.7f, 0.14f, t); bar(0.25f, 0.56f, 0.5f, 0.07f, g); break;
+            case 1: bar(0.1f, 0.12f, 0.6f, 0.12f, t); for (int k = 0; k < 3; ++k) { dl->AddCircleFilled({m.x + W * 0.14f, m.y + H * (0.42f + k * 0.17f)}, 1.6f, acc); bar(0.2f, 0.39f + k * 0.17f, 0.6f, 0.06f, g); } break;
+            case 2: bar(0.1f, 0.1f, 0.5f, 0.12f, t); for (int c = 0; c < 2; ++c) { bar(0.1f + c * 0.44f, 0.36f, 0.3f, 0.07f, acc); for (int k = 0; k < 3; ++k) bar(0.1f + c * 0.44f, 0.5f + k * 0.13f, 0.36f, 0.05f, g); } break;
+            case 3: { ImFont* f = ui::FamilyFont("serif"); dl->AddText(f, H * 0.6f, {m.x + W * 0.06f, m.y - H * 0.05f}, acc, "“"); bar(0.22f, 0.35f, 0.66f, 0.07f, t); bar(0.22f, 0.5f, 0.56f, 0.07f, t); bar(0.5f, 0.72f, 0.38f, 0.05f, g); break; }
+            case 4: { ImFont* f = ui::FamilyFont("title"); ImVec2 ts = f->CalcTextSizeA(H * 0.5f, 1e9f, 0, "42 %"); dl->AddText(f, H * 0.5f, {m.x + (W - ts.x) * 0.5f, m.y + H * 0.12f}, acc, "42 %"); bar(0.25f, 0.72f, 0.5f, 0.07f, g); break; }
+            case 5: bar(0.08f, 0.18f, 0.84f, 0.64f, ui::U32(ui::WithAlpha(ui::Pal().accent, 0.14f))); bar(0.08f, 0.18f, 0.04f, 0.64f, acc); bar(0.18f, 0.28f, 0.4f, 0.09f, t); bar(0.18f, 0.48f, 0.64f, 0.06f, g); bar(0.18f, 0.62f, 0.5f, 0.06f, g); break;
+            default: bar(0.06f, 0.2f, 0.42f, 0.66f, ui::U32(ui::Rgb(52, 199, 89, 0.3f))); bar(0.52f, 0.2f, 0.42f, 0.66f, ui::U32(ui::Rgb(255, 59, 48, 0.3f)));
+                     bar(0.12f, 0.28f, 0.26f, 0.08f, t); bar(0.58f, 0.28f, 0.26f, 0.08f, t); for (int k = 0; k < 2; ++k) { bar(0.12f, 0.5f + k * 0.14f, 0.3f, 0.05f, g); bar(0.58f, 0.5f + k * 0.14f, 0.3f, 0.05f, g); } break;
         }
-        // groupe de droite : fond procédural + inspecteur
-        float comboW = ui::S(130), btnW = ui::ButtonWidth("Étalonnage");
-        float x = ImGui::GetWindowContentRegionMax().x - comboW - btnW - ImGui::CalcTextSize("Fond").x - ImGui::GetStyle().ItemSpacing.x * 3;
-        ImGui::SameLine(); if (ImGui::GetCursorPosX() < x) ImGui::SetCursorPosX(x);
-        ImGui::BeginDisabled(!ui::fx::Available());
-        ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("Fond"); ImGui::SameLine(); ImGui::SetNextItemWidth(comboW);
-        if (ImGui::Combo("##bg", &doc.look.backdrop, ui::fx::BackdropNames(), ui::fx::kBackdropCount)) Commit("Fond du tableau blanc");
-        ImGui::SameLine(); if (ui::Button("Étalonnage", {0, 0}, showInspector)) showInspector = !showInspector;
-        ImGui::EndDisabled();
-        ui::EndCard();
+    }
+
+    // Insère une disposition prête à l'emploi au centre de la vue (comme les mises en page de PowerPoint).
+    void InsertLayout(int i) {
+        ImVec2 c = wb.ViewCenterWorld(); c.x -= 200; c.y -= 120;
+        const float acc[3] = {ui::Pal().accent.x, ui::Pal().accent.y, ui::Pal().accent.z};
+        const float ink[3] = {0.11f, 0.11f, 0.13f};
+        int firstId = ui::Whiteboard::NextShapeId(doc);
+        auto add = [&](ShapeKind k, float x, float y, float w, float h, const std::string& text, const char* font, float size, int ah, const float* col, bool bold = false, bool bullets = false) -> Shape& {
+            Shape s = ui::Whiteboard::DefaultShape((int)k, k == ShapeKind::Rect ? acc : ink);
+            s.id = ui::Whiteboard::NextShapeId(doc); s.x = c.x + x; s.y = c.y + y; if (k != ShapeKind::Title) { s.w = w; s.h = h; }
+            s.text = text; s.font = font; s.fontSize = size; s.alignH = ah; s.alignV = 0; s.bold = bold; s.bullets = bullets;
+            s.tc[0] = col[0]; s.tc[1] = col[1]; s.tc[2] = col[2]; s.tc[3] = 1; s.textShadow = false;
+            doc.shapes.push_back(s); return doc.shapes.back();
+        };
+        const float dim[3] = {0.42f, 0.43f, 0.47f};
+        switch (i) {
+            case 0: add(ShapeKind::TextBox, 0, 0, 440, 70, "Titre de la séance", "title", 44, 1, ink);
+                    add(ShapeKind::TextBox, 0, 78, 440, 40, "Sous-titre ou objectif du cours", "ui", 20, 1, dim); break;
+            case 1: add(ShapeKind::TextBox, 0, 0, 440, 56, "Points clés", "title", 36, 0, ink);
+                    add(ShapeKind::TextBox, 0, 64, 440, 130, "Premier point à retenir\nDeuxième point à retenir\nTroisième point à retenir", "ui", 19, 0, ink, false, true); break;
+            case 2: add(ShapeKind::TextBox, 0, 0, 520, 56, "Comparer deux approches", "title", 34, 0, ink);
+                    add(ShapeKind::TextBox, 0, 64, 250, 34, "Approche A", "ui", 20, 0, acc, true);
+                    add(ShapeKind::TextBox, 0, 100, 250, 110, "Hypothèse\nMéthode\nRésultat", "ui", 17, 0, ink, false, true);
+                    add(ShapeKind::TextBox, 270, 64, 250, 34, "Approche B", "ui", 20, 0, acc, true);
+                    add(ShapeKind::TextBox, 270, 100, 250, 110, "Hypothèse\nMéthode\nRésultat", "ui", 17, 0, ink, false, true); break;
+            case 3: { Shape& q = add(ShapeKind::TextBox, 0, 0, 460, 120, "« Le risque vient de ne pas savoir ce que l'on fait. »", "italic", 28, 1, ink); q.lineSpacing = 1.25f;
+                      add(ShapeKind::TextBox, 200, 124, 260, 30, "— Warren Buffett", "ui", 17, 2, dim); break; }
+            case 4: add(ShapeKind::TextBox, 0, 0, 360, 110, "42 %", "title", 88, 1, acc);
+                    add(ShapeKind::TextBox, 0, 112, 360, 40, "Part des flux actualisés au-delà de 5 ans", "ui", 18, 1, dim); break;
+            case 5: { Shape& r = add(ShapeKind::Rect, 0, 0, 460, 150, "", "ui", 18, 0, ink);
+                      r.fill = (int)FillType::Solid; r.fillAlpha = 0.10f; r.outline = false; r.radius = 8;
+                      Shape& bar = add(ShapeKind::Rect, 0, 0, 8, 150, "", "ui", 18, 0, ink); bar.fill = (int)FillType::Solid; bar.fillAlpha = 1; bar.outline = false; bar.radius = 3;
+                      add(ShapeKind::TextBox, 20, 10, 420, 34, "Définition", "ui", 20, 0, acc, true);
+                      add(ShapeKind::TextBox, 20, 46, 420, 96, "Le BFR mesure le besoin de financement né du décalage entre encaissements et décaissements du cycle d'exploitation.", "serif", 17, 0, ink); break; }
+            default: {
+                const float green[3] = {0.2f, 0.78f, 0.35f}, red[3] = {1.0f, 0.23f, 0.19f}, dg[3] = {0.08f, 0.42f, 0.2f}, dr[3] = {0.62f, 0.1f, 0.08f};
+                for (int k = 0; k < 2; ++k) {
+                    const float* cc = k ? red : green;
+                    Shape& r = add(ShapeKind::Rect, k * 250.0f, 0, 235, 190, "", "ui", 18, 0, ink);
+                    r.r = cc[0]; r.g = cc[1]; r.b = cc[2]; r.fill = (int)FillType::Solid; r.fillAlpha = 0.14f; r.lc[0] = cc[0]; r.lc[1] = cc[1]; r.lc[2] = cc[2]; r.stroke = 1.5f; r.radius = 12;
+                    add(ShapeKind::TextBox, k * 250.0f + 6, 8, 223, 34, k ? "Limites" : "Avantages", "ui", 20, 0, k ? dr : dg, true);
+                    add(ShapeKind::TextBox, k * 250.0f + 6, 46, 223, 130, k ? "Sensible aux hypothèses\nTaux difficile à estimer" : "Simple à calculer\nComparable entre projets", "ui", 16, 0, ink, false, true);
+                }
+            }
+        }
+        (void)firstId;
+        const char* names[] = {"Titre et sous-titre", "Titre et liste", "Deux colonnes", "Citation", "Chiffre clé", "Définition", "Comparaison"};
+        wb.tool = ui::Tool::Element; wb.Select(doc.shapes.back().id);
+        Commit(std::string("Disposition : ") + names[i]);
+        status = std::string("Disposition insérée : ") + names[i] + " (double-clic sur un texte pour le modifier)";
     }
 
     // Inspecteur d'étalonnage façon logiciel de montage (roues remplacées par des curseurs compacts).
@@ -795,13 +1123,25 @@ public:
             for (int i = 0; i <= 18; ++i) { float t = i / 18.0f; a.pts.push_back({620 + 200 * t, 300 - 60 * std::sin(t * 3.14159f), 1}); }
             s.strokes.push_back(a);
             // éléments de montage : titre, bandeau, post-it, bulle, flèche
-            auto shape = [&](ShapeKind k, float x, float y, float w, float h, const char* t, const char* sub, float r, float g, float b, bool filled) {
-                Shape e; e.id = (int)s.shapes.size() + 1; e.kind = (int)k; e.x = x; e.y = y; e.w = w; e.h = h; e.text = t; e.sub = sub; e.r = r; e.g = g; e.b = b; e.filled = filled; s.shapes.push_back(e); };
-            shape(ShapeKind::Title, 560, 380, 0, 0, "Gestion du risque", "", 0.11f, 0.11f, 0.13f, true);
-            shape(ShapeKind::Note, 1040, 380, 175, 150, "VaR 99 % sur 10 jours : multiplier la VaR 1 jour par racine de 10.", "", 1, 0.84f, 0.04f, false);
-            shape(ShapeKind::Arrow, 1030, 450, -120, 40, "", "", 0.88f, 0.22f, 0.24f, true);
-            shape(ShapeKind::LowerThird, 60, 420, 360, 66, "Black-Scholes-Merton", "Prix d'un call européen sans dividende", 0.0f, 0.48f, 1.0f, true);
-            shape(ShapeKind::Bubble, 600, 470, 230, 64, "Le BFR se finance par le FRNG.", "", 0.16f, 0.66f, 0.27f, true);
+            auto shape = [&](ShapeKind k, float x, float y, float w, float h, const char* t, const char* sub, float r, float g, float b) -> Shape& {
+                float rgb[3] = {r, g, b};
+                Shape e = ui::Whiteboard::DefaultShape((int)k, rgb); e.id = (int)s.shapes.size() + 1; e.x = x; e.y = y;
+                if (k != ShapeKind::Title) { e.w = w; e.h = h; }
+                e.text = t; e.sub = sub; s.shapes.push_back(e); return s.shapes.back(); };
+            shape(ShapeKind::Title, 560, 380, 0, 0, "Gestion du risque", "", 0.11f, 0.11f, 0.13f);
+            shape(ShapeKind::Note, 1040, 380, 175, 150, "VaR 99 % sur 10 jours : multiplier la VaR 1 jour par racine de 10.", "", 1, 0.84f, 0.04f);
+            shape(ShapeKind::Arrow, 1030, 450, -120, 40, "", "", 0.88f, 0.22f, 0.24f);
+            shape(ShapeKind::LowerThird, 60, 420, 360, 66, "Black-Scholes-Merton", "Prix d'un call européen sans dividende", 0.0f, 0.48f, 1.0f);
+            { Shape& b = shape(ShapeKind::Bubble, 600, 470, 230, 64, "Le BFR se finance par le FRNG.", "", 1, 1, 1);
+              b.lc[0] = 0.16f; b.lc[1] = 0.66f; b.lc[2] = 0.27f; }
+            // formes mises en forme : dégradés, effets et texte formaté
+            { Shape& st = shape(ShapeKind::Star, 1240, 170, 140, 130, "", "", 1.0f, 0.95f, 0.6f);
+              st.fill = (int)FillType::Radial; st.fillAlpha = 1; st.c2[0] = 0.93f; st.c2[1] = 0.55f; st.c2[2] = 0.05f; st.glow = true; st.outline = false; }
+            { Shape& ba = shape(ShapeKind::BlockArrow, 870, 170, 170, 80, "Cash-flow", "", 0.2f, 0.55f, 1.0f);
+              ba.fill = (int)FillType::Linear; ba.fillAlpha = 1; ba.c2[0] = 0.0f; ba.c2[1] = 0.25f; ba.c2[2] = 0.7f; ba.outline = false; ba.gloss = true; ba.bevel = true; ba.shadow = true;
+              ba.tc[0] = ba.tc[1] = ba.tc[2] = 1; ba.bold = true; ba.fontSize = 17; ba.alignH = 0; }
+            { Shape& tb = shape(ShapeKind::TextBox, 1222, 330, 168, 250, "À retenir\n- La VaR ignore la queue de distribution\n- L'ES est sous-additive\n- Bâle III retient l'ES à 97,5 %", "", 0, 0, 0);
+              tb.font = "serif"; tb.fontSize = 14; tb.lineSpacing = 1.3f; tb.fill = (int)FillType::Solid; tb.r = 1; tb.g = 1; tb.b = 1; tb.fillAlpha = 0.85f; tb.outline = true; tb.lc[0] = 0.8f; tb.lc[1] = 0.8f; tb.lc[2] = 0.84f; tb.stroke = 1; tb.dash = (int)Dash::Dashed; }
         }
         s.edges = {{1, 2, "Détermine"}, {2, 3, "Consomme"}};
         s.python = "import random\nrandom.seed(42)\nrendements = [random.gauss(0.08, 0.20) for _ in range(5000)]\nx_vals = [random.gauss(0.07, 0.15) for _ in range(5000)]\nrendements = [0.015 + 1.25 * x + random.gauss(0, 0.09) for x in x_vals]\n";
@@ -925,7 +1265,7 @@ public:
 } // namespace
 
 namespace {
-struct Cli { bool demo = false, dark = false, preview = false, inspector = false; float scale = 0; int backdrop = -1, look = -1, element = -1; int tab = 0, frames = 8, module = -1, support = -1, exercise = -1, studyTab = -1; std::string shot, pdf; int pdfPage = 0; };
+struct Cli { int ribbon = -1, select = -1; bool demo = false, dark = false, preview = false, inspector = false; float scale = 0; int backdrop = -1, look = -1, element = -1; int tab = 0, frames = 8, module = -1, support = -1, exercise = -1, studyTab = -1; std::string shot, pdf; int pdfPage = 0; };
 }
 
 int main(int argc, char** argv) {
@@ -940,6 +1280,7 @@ int main(int argc, char** argv) {
         else if (a == "--scale") cli.scale = (float)std::atof(next().c_str()); else if (a == "--backdrop") cli.backdrop = std::atoi(next().c_str());
         else if (a == "--look") cli.look = std::atoi(next().c_str()); else if (a == "--inspector") cli.inspector = true;
         else if (a == "--elements") cli.element = 1;
+        else if (a == "--ribbon") cli.ribbon = std::atoi(next().c_str()); else if (a == "--select") cli.select = std::atoi(next().c_str());
     }
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
 #ifdef __APPLE__
@@ -991,6 +1332,8 @@ int main(int argc, char** argv) {
         if (cli.look >= 0) { app.doc.look.grade = true; app.doc.look.preset = cli.look; app.doc.look.vignette = 0.35f; app.doc.look.grain = 0.25f; }
         if (cli.inspector) { app.showInspector = true; app.doc.look.grade = true; }
         if (cli.element > 0) app.wb.tool = ui::Tool::Element;
+        if (cli.select > 0) { app.wb.tool = ui::Tool::Element; app.wb.Select(cli.select); }
+        if (cli.ribbon >= 0) { app.ribbonTab = cli.ribbon; app.ribbonSeen = cli.select > 0 ? cli.select : -1; }
         if (cli.module >= 0) { app.modIdx = cli.module; app.supIdx = -1; }
         if (cli.exercise >= 0) app.exIdx = std::clamp(cli.exercise, 0, (int)app.exercises.size() - 1);
         if (cli.studyTab >= 0) app.studyTab = cli.studyTab;

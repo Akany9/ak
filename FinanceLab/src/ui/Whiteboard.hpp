@@ -4,6 +4,7 @@
 #include "Effects.hpp"
 #include "MathRender.hpp"
 #include "PdfView.hpp"
+#include "ShapeRender.hpp"
 #include "Theme.hpp"
 #include "imgui_stdlib.h"
 #include <algorithm>
@@ -14,7 +15,11 @@ namespace cl::ui {
 
 enum class Tool { Pen = 0, Highlighter, Eraser, Block, Link, Equation, Element };
 
-inline const char* const* ShapeNames() { static const char* n[] = {"Rectangle", "Ellipse", "Flèche", "Post-it", "Titre", "Bandeau", "Bulle"}; return n; }
+inline const char* const* ShapeNames() {
+    static const char* n[(int)ShapeKind::Count]; static bool init = false;
+    if (!init) { for (int i = 0; i < (int)ShapeKind::Count; ++i) n[i] = ShapeKindName(i); init = true; }
+    return n;
+}
 
 struct WbOutcome { bool changed = false; std::string label; };
 
@@ -112,19 +117,10 @@ public:
         ImGui::SetCursorScreenPos({origin_.x + S(6), maxp.y + S(6)});
         ImGui::TextDisabled("Zoom %.0f %%  ·  molette : zoom  ·  clic milieu ou Espace+glisser : déplacer", zoom_ * 100.0f);
         if (selectedShape_ > 0) {
-            Shape* h = FindShape(doc, selectedShape_);
-            if (h) {
-                ImGui::SameLine(); ImGui::SetNextItemWidth(S(220)); ImGui::InputTextWithHint("##st", "Texte", &h->text);
-                if (ImGui::IsItemDeactivatedAfterEdit()) { out.changed = true; out.label = "Texte d'un élément"; }
-                if (h->kind == (int)ShapeKind::LowerThird) {
-                    ImGui::SameLine(); ImGui::SetNextItemWidth(S(180)); ImGui::InputTextWithHint("##ss", "Sous-titre", &h->sub);
-                    if (ImGui::IsItemDeactivatedAfterEdit()) { out.changed = true; out.label = "Sous-titre d'un élément"; }
-                }
-                ImGui::SameLine(); if (Switch("Plein", &h->filled)) { out.changed = true; out.label = "Remplissage d'un élément"; }
-                ImGui::SameLine(); if (ImGui::SmallButton("Couleur de l'encre")) { h->r = color[0]; h->g = color[1]; h->b = color[2]; out.changed = true; out.label = "Couleur d'un élément"; }
-                ImGui::SameLine(); if (ImGui::SmallButton("Supprimer##sh")) { DeleteShape(doc, selectedShape_); selectedShape_ = -1; out.changed = true; out.label = "Supprimer un élément"; }
-            } else selectedShape_ = -1;
+            if (FindShape(doc, selectedShape_)) { ImGui::SameLine(); ImGui::TextDisabled("·  double-clic : modifier le texte  ·  Ctrl+D : dupliquer  ·  Suppr : effacer  ·  onglet « Format de la forme » du ruban"); }
+            else selectedShape_ = -1;
         }
+        TextEditor(doc, out);
         if (selectedEq_ > 0) {
             Equation* q = FindEq(doc, selectedEq_);
             if (q) {
@@ -181,9 +177,8 @@ private:
     static ImVec4 Bounds(const Shape& h) {
         float x0 = std::min(h.x, h.x + h.w), y0 = std::min(h.y, h.y + h.h), x1 = std::max(h.x, h.x + h.w), y1 = std::max(h.y, h.y + h.h);
         if (h.kind == (int)ShapeKind::Title) {
-            ImFont* f = Fonts().display ? Fonts().display : ImGui::GetFont();
-            ImVec2 t = f->CalcTextSizeA(40.0f, 1e9f, 0, h.text.empty() ? " " : h.text.c_str());
-            x0 = h.x; y0 = h.y; x1 = h.x + t.x + 8; y1 = h.y + t.y + 4;
+            ImVec2 t = shapes::MeasureWorld(h);
+            x0 = h.x; y0 = h.y; x1 = h.x + t.x; y1 = h.y + t.y;
         }
         return {x0, y0, x1, y1};
     }
@@ -205,21 +200,74 @@ private:
         if (h.kind == (int)ShapeKind::Arrow) return ToScreen({h.x + h.w, h.y + h.h});
         ImVec4 r = Bounds(h); return ToScreen({r.z, r.w});
     }
-    static Shape DefaultShape(int kind) {
-        Shape h; h.kind = kind;
+public:
+    // Élément prêt à poser, couleur principale = couleur de l'encre ; style par défaut du type.
+    static Shape DefaultShape(int kind, const float* rgb) {
+        Shape h; h.kind = kind; h.r = rgb[0]; h.g = rgb[1]; h.b = rgb[2];
+        bool legacyFilled = true;
         switch ((ShapeKind)kind) {
-            case ShapeKind::Rect: h.w = 180; h.h = 110; h.filled = true; break;
-            case ShapeKind::Ellipse: h.w = 160; h.h = 110; h.filled = true; break;
+            case ShapeKind::Rect: h.w = 180; h.h = 110; break;
+            case ShapeKind::Ellipse: h.w = 160; h.h = 110; break;
             case ShapeKind::Arrow: h.w = 160; h.h = 0; h.stroke = 3; break;
-            case ShapeKind::Note: h.w = 170; h.h = 150; h.text = "Idée à retenir"; h.filled = false; break;
+            case ShapeKind::Note: h.w = 170; h.h = 150; h.text = "Idée à retenir"; legacyFilled = false; break;
             case ShapeKind::Title: h.text = "Titre de la séance"; break;
             case ShapeKind::LowerThird: h.w = 340; h.h = 66; h.text = "Valeur actuelle nette"; h.sub = "VAN = somme des flux actualisés - I0"; break;
             case ShapeKind::Bubble: h.w = 210; h.h = 84; h.text = "Attention au signe du BFR !"; break;
+            case ShapeKind::TextBox: h.w = 280; h.h = 70; h.text = "Double-cliquez pour saisir du texte"; break;
+            case ShapeKind::Triangle: case ShapeKind::Diamond: h.w = 140; h.h = 120; break;
+            case ShapeKind::Hexagon: h.w = 160; h.h = 120; break;
+            case ShapeKind::Star: h.w = 140; h.h = 135; break;
+            case ShapeKind::BlockArrow: h.w = 180; h.h = 90; break;
             default: break;
         }
+        ApplyDefaultStyle(h, legacyFilled);
         return h;
     }
-
+    Shape* Selected(ProjectState& d) { return selectedShape_ > 0 ? FindShape(d, selectedShape_) : nullptr; }
+    void Select(int id) { selectedShape_ = id; selected_ = selectedEq_ = -1; }
+    void EditText(int id) { editing_ = id; editFocus_ = true; }
+    static int NextShapeId(const ProjectState& d) { int id = 1; for (auto& e : d.shapes) id = std::max(id, e.id + 1); return id; }
+    // Duplique l'élément sélectionné (décalé), comme Ctrl+D dans PowerPoint.
+    bool Duplicate(ProjectState& d) {
+        Shape* h = Selected(d); if (!h) return false;
+        Shape c = *h; c.id = NextShapeId(d); c.x += 24; c.y += 24; d.shapes.push_back(c); selectedShape_ = c.id; return true;
+    }
+    // Ordre d'empilement : +1 premier plan, -1 arrière-plan.
+    bool Reorder(ProjectState& d, int dir) {
+        for (size_t i = 0; i < d.shapes.size(); ++i) if (d.shapes[i].id == selectedShape_) {
+            Shape c = d.shapes[i]; d.shapes.erase(d.shapes.begin() + i);
+            if (dir > 0) d.shapes.push_back(c); else d.shapes.insert(d.shapes.begin(), c);
+            return true;
+        }
+        return false;
+    }
+private:
+    int editing_ = -1; bool editFocus_ = false; std::string editBefore_;
+    // Fenêtre flottante de saisie (double-clic), ancrée sous l'élément.
+    void TextEditor(ProjectState& doc, WbOutcome& out) {
+        if (editing_ <= 0) return;
+        Shape* h = FindShape(doc, editing_);
+        if (!h) { editing_ = -1; return; }
+        ImVec4 r = Bounds(*h); ImVec2 at = ToScreen({r.x, r.w});
+        ImGui::SetNextWindowPos({at.x, at.y + S(10)}, ImGuiCond_Always);
+        ImGui::SetNextWindowSize({S(360), 0});
+        bool open = true;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, S(ImVec2(10, 8)));
+        if (ImGui::Begin("Texte de l'élément##edit", &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
+            if (editFocus_) { ImGui::SetKeyboardFocusHere(); editBefore_ = h->text + "\x1f" + h->sub; editFocus_ = false; }
+            ImGui::InputTextMultiline("##txt", &h->text, ImVec2(-1, S(96)));
+            if (h->kind == (int)ShapeKind::LowerThird) { ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##sub", "Sous-titre", &h->sub); }
+            ImGui::TextDisabled("Une ligne commençant par « - » devient une puce.");
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - ButtonWidth("Terminer"));
+            if (Button("Terminer", {0, 0}, true)) open = false;
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
+        if (!open || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            if (h->text + "\x1f" + h->sub != editBefore_) { out.changed = true; out.label = "Texte d'un élément"; }
+            editing_ = -1;
+        }
+    }
     static void DeleteNode(ProjectState& d, int id) {
         d.nodes.erase(std::remove_if(d.nodes.begin(), d.nodes.end(), [&](const Node& n) { return n.id == id; }), d.nodes.end());
         d.edges.erase(std::remove_if(d.edges.begin(), d.edges.end(), [&](const Edge& e) { return e.from == id || e.to == id; }), d.edges.end());
@@ -308,8 +356,7 @@ private:
                 else if (Shape* hit = HitShape(doc, w)) { dragShape_ = selectedShape_ = hit->id; }
                 else {
                     selectedShape_ = -1; creating_ = true; anchor_ = w;
-                    newShape_ = DefaultShape(shapeKind); newShape_.x = w.x; newShape_.y = w.y;
-                    newShape_.r = color[0]; newShape_.g = color[1]; newShape_.b = color[2];
+                    newShape_ = DefaultShape(shapeKind, color); newShape_.x = w.x; newShape_.y = w.y;
                     if (shapeKind != (int)ShapeKind::Title && shapeKind != (int)ShapeKind::Arrow) { newShape_.w = 0; newShape_.h = 0; }
                     if (shapeKind == (int)ShapeKind::Arrow) { newShape_.w = 0; newShape_.h = 0; }
                 }
@@ -329,7 +376,7 @@ private:
                     creating_ = false;
                     Shape h = newShape_;
                     bool click = std::fabs(h.w) < 6 / zoom_ && std::fabs(h.h) < 6 / zoom_;
-                    if (click) { Shape d = DefaultShape(h.kind); h.w = d.w; h.h = d.h; }
+                    if (click) { Shape d = DefaultShape(h.kind, color); h.w = d.w; h.h = d.h; }
                     if (h.kind != (int)ShapeKind::Arrow) {
                         if (h.w < 0) { h.x += h.w; h.w = -h.w; }
                         if (h.h < 0) { h.y += h.h; h.h = -h.h; }
@@ -337,10 +384,12 @@ private:
                     }
                     int id = 1; for (auto& e : doc.shapes) id = std::max(id, e.id + 1);
                     h.id = id; doc.shapes.push_back(h); selectedShape_ = id;
-                    out.changed = true; out.label = std::string("Nouvel élément : ") + ShapeNames()[h.kind];
+                    out.changed = true; out.label = std::string("Nouvel élément : ") + ShapeKindName(h.kind);
                 } else if (shapeMoved_) { out.changed = true; out.label = resizing_ ? "Redimensionner un élément" : "Déplacer un élément"; }
                 shapeMoved_ = resizing_ = false; dragShape_ = -1;
             }
+            if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) if (Shape* hit = HitShape(doc, w)) { selectedShape_ = hit->id; EditText(hit->id); }
+            if (selectedShape_ > 0 && !io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D)) { if (Duplicate(doc)) { out.changed = true; out.label = "Dupliquer un élément"; } }
             if (selectedShape_ > 0 && !io.WantTextInput && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace))) {
                 DeleteShape(doc, selectedShape_); selectedShape_ = -1; out.changed = true; out.label = "Supprimer un élément"; }
         }
@@ -366,83 +415,13 @@ private:
 
     // ---------------------------------------------------------------- éléments (cartons de montage)
     void DrawShape(ImDrawList* dl, const Shape& h, bool selected) const {
-        float z = zoom_;
-        ImU32 col = ImGui::ColorConvertFloat4ToU32({h.r, h.g, h.b, h.a});
-        ImU32 soft = ImGui::ColorConvertFloat4ToU32({h.r, h.g, h.b, h.a * 0.14f});
         ImVec4 bw = Bounds(h);
         ImVec2 tl = ToScreen({bw.x, bw.y}), br = ToScreen({bw.z, bw.w});
-        ImFont* uf = Fonts().ui ? Fonts().ui : ImGui::GetFont();
-        ImFont* df = Fonts().display ? Fonts().display : uf;
-        ImFont* tf = Fonts().title ? Fonts().title : uf;
-        auto shadow = [&](ImVec2 a, ImVec2 b, float r, float k) {
-            for (int i = 4; i >= 1; --i) { float e = 1.8f * i * z; dl->AddRectFilled({a.x - e * 0.5f, a.y - e * 0.3f + 3 * z}, {b.x + e * 0.5f, b.y + e + 3 * z}, IM_COL32(0, 0, 0, (int)(k * 26 / i)), r + e); }
-        };
-        switch ((ShapeKind)h.kind) {
-            case ShapeKind::Rect:
-                if (h.filled) dl->AddRectFilled(tl, br, soft, 10 * z);
-                dl->AddRect(tl, br, col, 10 * z, 0, std::max(1.0f, h.stroke * z));
-                break;
-            case ShapeKind::Ellipse: {
-                ImVec2 c((tl.x + br.x) / 2, (tl.y + br.y) / 2), r((br.x - tl.x) / 2, (br.y - tl.y) / 2);
-                if (h.filled) dl->AddEllipseFilled(c, r, soft);
-                dl->AddEllipse(c, r, col, 0, 0, std::max(1.0f, h.stroke * z));
-                break; }
-            case ShapeKind::Arrow: {
-                ImVec2 a = ToScreen({h.x, h.y}), b = ToScreen({h.x + h.w, h.y + h.h});
-                float L = std::hypot(b.x - a.x, b.y - a.y); if (L < 1) break;
-                ImVec2 d((b.x - a.x) / L, (b.y - a.y) / L), n(-d.y, d.x);
-                float hs = std::max(10.0f, h.stroke * 4.5f) * z;
-                ImVec2 base(b.x - d.x * hs, b.y - d.y * hs);
-                dl->AddLine(a, base, col, std::max(1.0f, h.stroke * z));
-                dl->AddTriangleFilled(b, {base.x + n.x * hs * 0.55f, base.y + n.y * hs * 0.55f}, {base.x - n.x * hs * 0.55f, base.y - n.y * hs * 0.55f}, col);
-                break; }
-            case ShapeKind::Note: {                       // post-it : papier teinté, ruban adhésif, coin corné
-                // « Plein » : papier teinté de la couleur de l'élément ; sinon jaune classique.
-                ImVec4 paper = h.filled ? ImVec4(1 - (1 - h.r) * 0.34f, 1 - (1 - h.g) * 0.34f, 1 - (1 - h.b) * 0.34f, 1) : ImVec4(1.0f, 0.92f, 0.52f, 1);
-                ImVec4 paperDark(paper.x * 0.86f, paper.y * 0.86f, paper.z * 0.8f, 1);
-                shadow(tl, br, 2 * z, 1.0f);
-                float c = std::min(22 * z, (br.x - tl.x) * 0.3f);
-                ImVec2 poly[5] = {tl, {br.x, tl.y}, {br.x, br.y - c}, {br.x - c, br.y}, {tl.x, br.y}};
-                int v0 = dl->VtxBuffer.Size;
-                dl->AddConvexPolyFilled(poly, 5, IM_COL32_WHITE);
-                ImGui::ShadeVertsLinearColorGradientKeepAlpha(dl, v0, dl->VtxBuffer.Size, tl, {tl.x, br.y}, ImGui::ColorConvertFloat4ToU32(paper), ImGui::ColorConvertFloat4ToU32(paperDark));
-                dl->AddTriangleFilled({br.x, br.y - c}, {br.x - c, br.y}, {br.x - c * 0.92f, br.y - c * 0.92f}, ImGui::ColorConvertFloat4ToU32({paperDark.x * 0.85f, paperDark.y * 0.85f, paperDark.z * 0.85f, 1}));
-                float cx = (tl.x + br.x) / 2;
-                dl->AddRectFilled({cx - 26 * z, tl.y - 9 * z}, {cx + 26 * z, tl.y + 11 * z}, IM_COL32(255, 255, 255, 120), 2 * z);
-                dl->AddRect({cx - 26 * z, tl.y - 9 * z}, {cx + 26 * z, tl.y + 11 * z}, IM_COL32(0, 0, 0, 18), 2 * z);
-                dl->AddText(uf, 16 * z, {tl.x + 12 * z, tl.y + 18 * z}, IM_COL32(48, 42, 30, 255), h.text.c_str(), nullptr, std::max(10.0f, br.x - tl.x - 24 * z));
-                break; }
-            case ShapeKind::Title: {
-                // un titre sombre posé sur un fond sombre (ardoise, nuit) passe en blanc cassé
-                if (boardDark_ && 0.2126f * h.r + 0.7152f * h.g + 0.0722f * h.b < 0.35f) col = IM_COL32(240, 240, 235, 255);
-                if (h.filled) dl->AddText(df, 40 * z, {tl.x + 4 * z + 2 * z, tl.y + 2 * z + 2 * z}, IM_COL32(0, 0, 0, boardDark_ ? 140 : 45), h.text.c_str());
-                dl->AddText(df, 40 * z, {tl.x + 4 * z, tl.y + 2 * z}, col, h.text.c_str());
-                break; }
-            case ShapeKind::LowerThird: {                 // bandeau de télévision : liseré coloré + verre fumé
-                float tw = tf->CalcTextSizeA(22, 1e9f, 0, h.text.c_str()).x, sw = uf->CalcTextSizeA(14, 1e9f, 0, h.sub.c_str()).x;
-                float wpx = std::max(br.x - tl.x, (std::max(tw, sw) + 40) * z);
-                ImVec2 b2(tl.x + wpx, br.y);
-                shadow(tl, b2, 6 * z, 1.2f);
-                int v0 = dl->VtxBuffer.Size;
-                dl->AddRectFilled(tl, b2, IM_COL32(255, 255, 255, h.filled ? 235 : 200), 6 * z);
-                ImGui::ShadeVertsLinearColorGradientKeepAlpha(dl, v0, dl->VtxBuffer.Size, tl, {tl.x, b2.y}, IM_COL32(44, 46, 54, 255), IM_COL32(22, 23, 28, 255));
-                dl->AddRectFilled(tl, {tl.x + 7 * z, b2.y}, col, 6 * z, ImDrawFlags_RoundCornersLeft);
-                dl->AddLine({tl.x + 10 * z, tl.y + 1 * z}, {b2.x - 6 * z, tl.y + 1 * z}, IM_COL32(255, 255, 255, 40), 1);
-                dl->AddText(tf, 22 * z, {tl.x + 20 * z, tl.y + 8 * z}, IM_COL32(255, 255, 255, 250), h.text.c_str());
-                dl->AddText(uf, 14 * z, {tl.x + 20 * z, tl.y + 38 * z}, IM_COL32(255, 255, 255, 185), h.sub.c_str());
-                br = b2;
-                break; }
-            case ShapeKind::Bubble: {
-                ImU32 bg = boardDark_ ? IM_COL32(48, 50, 58, 245) : IM_COL32(255, 255, 255, 248);
-                shadow(tl, br, 14 * z, 0.8f);
-                float tx = tl.x + std::min(36 * z, (br.x - tl.x) * 0.3f);
-                dl->AddTriangleFilled({tx, br.y - 2 * z}, {tx + 22 * z, br.y - 2 * z}, {tx - 6 * z, br.y + 18 * z}, bg);
-                dl->AddRectFilled(tl, br, bg, 14 * z);
-                dl->AddRect(tl, br, h.filled ? col : IM_COL32(0, 0, 0, 30), 14 * z, 0, std::max(1.0f, 1.6f * z));
-                dl->AddText(uf, 15 * z, {tl.x + 14 * z, tl.y + 12 * z}, boardDark_ ? IM_COL32(235, 238, 245, 255) : IM_COL32(30, 32, 38, 255), h.text.c_str(), nullptr, std::max(10.0f, br.x - tl.x - 28 * z));
-                break; }
-            default: break;
-        }
+        if (h.kind == (int)ShapeKind::Arrow) shapes::Draw(dl, h, ToScreen({h.x, h.y}), ToScreen({h.x + h.w, h.y + h.h}), zoom_, boardDark_);
+        else if (boardDark_ && !h.text.empty() && shapes::Luma(h.tc) < 0.35f && h.fill == (int)FillType::None) {
+            Shape t = h; t.tc[0] = t.tc[1] = t.tc[2] = 0.94f;       // texte sombre sans fond posé sur ardoise / nuit : passe en clair
+            shapes::Draw(dl, t, tl, br, zoom_, boardDark_);
+        } else shapes::Draw(dl, h, tl, br, zoom_, boardDark_);
         if (selected) {
             ImU32 acc = IM_COL32(10, 132, 255, 230);
             if (h.kind == (int)ShapeKind::Arrow) { dl->AddCircle(ToScreen({h.x, h.y}), S(5), acc, 0, S(1.5f)); }

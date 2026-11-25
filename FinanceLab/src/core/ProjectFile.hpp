@@ -18,7 +18,7 @@ struct IoResult { bool ok = false; std::string message; };
 class ProjectFile {
 public:
     static constexpr int kAppId = 0x53544459;
-    static constexpr int kVersion = 4;
+    static constexpr int kVersion = 5;
 
     // Écriture atomique : fichier temporaire puis renommage (l'ancien fichier reste intact en cas d'échec).
     static IoResult Save(const std::filesystem::path& path, const ProjectState& s) {
@@ -95,14 +95,21 @@ public:
           } }
         { Stmt st(db, "SELECT script FROM db_dump WHERE id=1;");
           if (st.s && sqlite3_step(st.s) == SQLITE_ROW) p.dbDump = Txt(st.s, 0); }
-        { Stmt st(db, "SELECT id,kind,x,y,w,h,text,sub,r,g,b,a,filled,stroke FROM wb_shapes ORDER BY id;");   // absent avant la v4
-          while (st.s && sqlite3_step(st.s) == SQLITE_ROW) {
-              Shape h; h.id = sqlite3_column_int(st.s, 0); h.kind = sqlite3_column_int(st.s, 1);
-              h.x = (float)sqlite3_column_double(st.s, 2); h.y = (float)sqlite3_column_double(st.s, 3); h.w = (float)sqlite3_column_double(st.s, 4); h.h = (float)sqlite3_column_double(st.s, 5);
-              h.text = Txt(st.s, 6); h.sub = Txt(st.s, 7);
-              h.r = (float)sqlite3_column_double(st.s, 8); h.g = (float)sqlite3_column_double(st.s, 9); h.b = (float)sqlite3_column_double(st.s, 10); h.a = (float)sqlite3_column_double(st.s, 11);
-              h.filled = sqlite3_column_int(st.s, 12) != 0; h.stroke = (float)sqlite3_column_double(st.s, 13);
+        {   // v5 : colonne « style » ; v4 : sans style (style par défaut déduit) ; avant v4 : table absente
+            std::unique_ptr<Stmt> st(new Stmt(db, "SELECT id,kind,x,y,w,h,text,sub,r,g,b,a,filled,stroke,style FROM wb_shapes ORDER BY id;"));
+            bool hasStyle = st->s != nullptr;
+            if (!hasStyle) st.reset(new Stmt(db, "SELECT id,kind,x,y,w,h,text,sub,r,g,b,a,filled,stroke FROM wb_shapes ORDER BY id;"));
+          while (st->s && sqlite3_step(st->s) == SQLITE_ROW) {
+              sqlite3_stmt* q = st->s;
+              Shape h; h.id = sqlite3_column_int(q, 0); h.kind = sqlite3_column_int(q, 1);
+              h.x = (float)sqlite3_column_double(q, 2); h.y = (float)sqlite3_column_double(q, 3); h.w = (float)sqlite3_column_double(q, 4); h.h = (float)sqlite3_column_double(q, 5);
+              h.text = Txt(q, 6); h.sub = Txt(q, 7);
+              h.r = (float)sqlite3_column_double(q, 8); h.g = (float)sqlite3_column_double(q, 9); h.b = (float)sqlite3_column_double(q, 10); h.a = (float)sqlite3_column_double(q, 11);
+              h.filled = sqlite3_column_int(q, 12) != 0; h.stroke = (float)sqlite3_column_double(q, 13);
               if (h.kind < 0 || h.kind >= (int)ShapeKind::Count) h.kind = 0;
+              std::string style = hasStyle ? Txt(q, 14) : "";
+              if (style.empty()) ApplyDefaultStyle(h, h.filled);   // projet v4 : style déduit du type
+              else ShapeStyleFromString(h, style);
               p.shapes.push_back(std::move(h)); } }
         { Stmt st(db, "SELECT row_idx,col_idx,raw FROM sheet_cells;");
           while (st.s && sqlite3_step(st.s) == SQLITE_ROW) p.cells.push_back({sqlite3_column_int(st.s, 0), sqlite3_column_int(st.s, 1), Txt(st.s, 2)}); }
@@ -152,7 +159,7 @@ private:
         struct Closer { sqlite3* d; ~Closer() { sqlite3_close(d); } } closer{db};
         auto fail = [&](const char* ctx) { std::string m = std::string(ctx) + " : " + sqlite3_errmsg(db); Exec(db, "ROLLBACK;"); return IoResult{false, m}; };
 
-        if (!Exec(db, "PRAGMA journal_mode=DELETE;") || !Exec(db, "PRAGMA application_id=1398031449;") || !Exec(db, "PRAGMA user_version=4;"))
+        if (!Exec(db, "PRAGMA journal_mode=DELETE;") || !Exec(db, "PRAGMA application_id=1398031449;") || !Exec(db, "PRAGMA user_version=5;"))
             return fail("PRAGMA");
         if (!Exec(db, R"SQL(
 CREATE TABLE project_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -162,7 +169,7 @@ CREATE TABLE wb_strokes (stroke_id INTEGER PRIMARY KEY AUTOINCREMENT, layer_inde
 CREATE TABLE wb_nodes (id INTEGER PRIMARY KEY, x REAL, y REAL, w REAL, h REAL, title TEXT, subtitle TEXT, r REAL, g REAL, b REAL, a REAL);
 CREATE TABLE wb_edges (edge_id INTEGER PRIMARY KEY AUTOINCREMENT, from_id INTEGER, to_id INTEGER, label TEXT);
 CREATE TABLE wb_equations (id INTEGER PRIMARY KEY, x REAL, y REAL, latex TEXT, r REAL, g REAL, b REAL, a REAL, card INTEGER);
-CREATE TABLE wb_shapes (id INTEGER PRIMARY KEY, kind INTEGER, x REAL, y REAL, w REAL, h REAL, text TEXT, sub TEXT, r REAL, g REAL, b REAL, a REAL, filled INTEGER, stroke REAL);
+CREATE TABLE wb_shapes (id INTEGER PRIMARY KEY, kind INTEGER, x REAL, y REAL, w REAL, h REAL, text TEXT, sub TEXT, r REAL, g REAL, b REAL, a REAL, filled INTEGER, stroke REAL, style TEXT);
 CREATE TABLE db_dump (id INTEGER PRIMARY KEY, script TEXT NOT NULL);
 CREATE TABLE sheet_cells (row_idx INTEGER, col_idx INTEGER, raw TEXT NOT NULL, PRIMARY KEY (row_idx, col_idx));
 )SQL")) return fail("Schéma");
@@ -201,13 +208,14 @@ CREATE TABLE sheet_cells (row_idx INTEGER, col_idx INTEGER, raw TEXT NOT NULL, P
                 sqlite3_reset(st->s); sqlite3_bind_int(st->s, 1, q.id); sqlite3_bind_double(st->s, 2, q.x); sqlite3_bind_double(st->s, 3, q.y); sqlite3_bind_text(st->s, 4, q.latex.c_str(), -1, SQLITE_TRANSIENT);
                 sqlite3_bind_double(st->s, 5, q.r); sqlite3_bind_double(st->s, 6, q.g); sqlite3_bind_double(st->s, 7, q.b); sqlite3_bind_double(st->s, 8, q.a); sqlite3_bind_int(st->s, 9, q.card);
                 if (sqlite3_step(st->s) != SQLITE_DONE) return fail("équations"); } }
-        {   std::unique_ptr<Stmt> st(prep("INSERT INTO wb_shapes VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14);"));
+        {   std::unique_ptr<Stmt> st(prep("INSERT INTO wb_shapes VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15);"));
             for (auto& h : s.shapes) {
                 sqlite3_reset(st->s); sqlite3_bind_int(st->s, 1, h.id); sqlite3_bind_int(st->s, 2, h.kind);
                 sqlite3_bind_double(st->s, 3, h.x); sqlite3_bind_double(st->s, 4, h.y); sqlite3_bind_double(st->s, 5, h.w); sqlite3_bind_double(st->s, 6, h.h);
                 sqlite3_bind_text(st->s, 7, h.text.c_str(), -1, SQLITE_TRANSIENT); sqlite3_bind_text(st->s, 8, h.sub.c_str(), -1, SQLITE_TRANSIENT);
                 sqlite3_bind_double(st->s, 9, h.r); sqlite3_bind_double(st->s, 10, h.g); sqlite3_bind_double(st->s, 11, h.b); sqlite3_bind_double(st->s, 12, h.a);
                 sqlite3_bind_int(st->s, 13, h.filled); sqlite3_bind_double(st->s, 14, h.stroke);
+                std::string style = ShapeStyleToString(h); sqlite3_bind_text(st->s, 15, style.c_str(), -1, SQLITE_TRANSIENT);
                 if (sqlite3_step(st->s) != SQLITE_DONE) return fail("éléments"); } }
         {   std::unique_ptr<Stmt> st(prep("INSERT INTO db_dump VALUES(1,?1);"));
             sqlite3_bind_text(st->s, 1, s.dbDump.c_str(), -1, SQLITE_TRANSIENT);
